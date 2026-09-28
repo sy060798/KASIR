@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="theme-color"
+        content="#1565c0"
+    >
+
+    <meta
+        name="description"
+        content="Aplikasi kasir menu dan penjualan"
+    >
+
+    <title>Kasir</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+</head>
+
+<body>
+
+    <div
+        id="app"
+        class="app"
+    >
+
+        <!-- ==================================================
+             HEADER
+        =================================================== -->
+
+        <header class="app-header">
+
+            <div class="header-left">
+
+                <div class="store-logo">
+                    K
+                </div>
+
+                <div>
+
+                    <h1 id="storeName">
+                        KASIR
+                    </h1>
+
+                    <p id="currentDate">
+                        -
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="header-right">
+
+                <div class="connection-status">
+
+                    <span
+                        id="connectionIndicator"
+                        class="status-dot offline"
+                    ></span>
+
+                    <span id="connectionText">
+                        Menghubungkan...
+                    </span>
+
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- ==================================================
+             MAIN KASIR
+        =================================================== -->
+
+        <main class="cashier-layout">
+
+
+            <!-- ==================================================
+                 KIRI
+                 PESANAN / KERANJANG
+            =================================================== -->
+
+            <section class="order-section">
+
+                <div class="section-header">
+
+                    <div>
+
+                        <h2>
+                            PESANAN
+                        </h2>
+
+                        <p>
+                            <span id="cartItemCount">
+                                0
+                            </span>
+                            item dipilih
+                        </p>
+
+                    </div>
+
+                    <button
+                        type="button"
+                        id="clearCartButton"
+                        class="button danger-outline"
+                    >
+                        KOSONGKAN
+                    </button>
+
+                </div>
+
+
+                <!-- LIST PESANAN -->
+                <div
+                    id="cartList"
+                    class="cart-list"
+                    aria-live="polite"
+                ></div>
+
+
+                <!-- KERANJANG KOSONG -->
+
+                <div
+                    id="emptyCart"
+                    class="empty-state"
+                >
+
+                    <div class="empty-icon">
+                        +
+                    </div>
+
+                    <h3>
+                        BELUM ADA PESANAN
+                    </h3>
+
+                    <p>
+                        Pilih menu dari sebelah kanan.
+                    </p>
+
+                </div>
+
+
+                <!-- ==================================================
+                     PEMBAYARAN
+                =================================================== -->
+
+                <div class="payment-box">
+
+                    <div class="summary-row total-row">
+
+                        <span>
+                            TOTAL
+                        </span>
+
+                        <strong id="cartTotal">
+                            Rp0
+                        </strong>
+
+                    </div>
+
+
+                    <div class="payment-field">
+
+                        <label for="paymentAmount">
+                            UANG BAYAR
+                        </label>
+
+                        <input
+                            type="number"
+                            id="paymentAmount"
+                            min="0"
+                            step="100"
+                            inputmode="numeric"
+                            placeholder="Masukkan nominal pembayaran"
+                        >
+
+                    </div>
+
+
+                    <div class="summary-row change-row">
+
+                        <span>
+                            KEMBALIAN
+                        </span>
+
+                        <strong id="changeAmount">
+                            Rp0
+                        </strong>
+
+                    </div>
+
+
+                    <div
+                        id="paymentMessage"
+                        class="payment-message"
+                        role="status"
+                        aria-live="polite"
+                    ></div>
+
+
+                    <!-- BAYAR SAJA.
+                         PRINT TERPISAH SETELAH BAYAR. -->
+
+                    <button
+                        type="button"
+                        id="payButton"
+                        class="button primary pay-button"
+                        disabled
+                    >
+                        BAYAR
+                    </button>
+
+                </div>
+
+            </section>
+
+
+            <!-- ==================================================
+                 KANAN
+                 DAFTAR MENU
+            =================================================== -->
+
+            <section class="menu-section">
+
+                <div class="section-header">
+
+                    <div>
+
+                        <h2>
+                            MENU
+                        </h2>
+
+                        <p>
+                            Pilih menu untuk memasukkan pesanan
+                        </p>
+
+                    </div>
+
+                    <button
+                        type="button"
+                        id="manageMenuButton"
+                        class="button orange"
+                    >
+                        KELOLA MENU
+                    </button>
+
+                </div>
+
+
+                <!-- ==================================================
+                     PENCARIAN
+                =================================================== -->
+
+                <div class="search-box">
+
+                    <label for="menuSearch">
+                        CARI MENU
+                    </label>
+
+                    <input
+                        type="search"
+                        id="menuSearch"
+                        placeholder="Ketik nama menu..."
+                        autocomplete="off"
+                    >
+
+                </div>
+
+
+                <!-- ==================================================
+                     FILTER KATEGORI
+                =================================================== -->
+
+                <div
+                    id="categoryButtons"
+                    class="category-filter"
+                >
+
+                    <button
+                        type="button"
+                        class="category-button active"
+                        data-category="all"
+                    >
+                        SEMUA
+                    </button>
+
+                </div>
+
+
+                <!-- ==================================================
+                     DAFTAR MENU
+                     DATA DIISI DARI app.js
+                     TIDAK ADA DATA DUMMY
+                =================================================== -->
+
+                <div
+                    id="menuList"
+                    class="menu-list"
+                    aria-live="polite"
+                ></div>
+
+
+                <!-- MENU KOSONG -->
+
+                <div
+                    id="emptyMenu"
+                    class="empty-state"
+                    hidden
+                >
+
+                    <div class="empty-icon">
+                        +
+                    </div>
+
+                    <h3>
+                        BELUM ADA MENU
+                    </h3>
+
+                    <p>
+                        Tambahkan nama menu dan harga terlebih dahulu.
+                    </p>
+
+                    <button
+                        type="button"
+                        id="addMenuFromEmpty"
+                        class="button orange"
+                    >
+                        + TAMBAH MENU
+                    </button>
+
+                </div>
+
+            </section>
+
+        </main>
+
+
+        <!-- ==================================================
+             PENJUALAN HARI INI
+        =================================================== -->
+
+        <section class="sales-section">
+
+            <div class="sales-header">
+
+                <div>
+
+                    <h2>
+                        PENJUALAN HARI INI
+                    </h2>
+
+                    <p id="salesDate">
+                        -
+                    </p>
+
+                </div>
+
+
+                <div class="sales-summary">
+
+                    <div class="sales-stat">
+
+                        <span>
+                            TRANSAKSI
+                        </span>
+
+                        <strong id="todayTransactionCount">
+                            0
+                        </strong>
+
+                    </div>
+
+
+                    <div class="sales-stat">
+
+                        <span>
+                            TOTAL PENJUALAN
+                        </span>
+
+                        <strong id="todaySalesTotal">
+                            Rp0
+                        </strong>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- ==================================================
+                 TOMBOL LAPORAN
+            =================================================== -->
+
+            <div class="sales-actions">
+
+                <button
+                    type="button"
+                    id="downloadTodayButton"
+                    class="button primary"
+                >
+                    DOWNLOAD PENJUALAN HARI INI
+                </button>
+
+
+                <button
+                    type="button"
+                    id="resetTodayButton"
+                    class="button danger"
+                >
+                    SETEL ULANG
+                </button>
+
+            </div>
+
+
+            <!-- ==================================================
+                 HISTORY PENJUALAN
+            =================================================== -->
+
+            <div
+                id="salesHistory"
+                class="sales-history"
+                aria-live="polite"
+            ></div>
+
+
+            <div
+                id="emptySales"
+                class="empty-state"
+            >
+
+                <h3>
+                    BELUM ADA PENJUALAN
+                </h3>
+
+                <p>
+                    Transaksi yang sudah dibayar akan muncul di sini.
+                </p>
+
+            </div>
+
+        </section>
+
+    </div>
+
+
+    <!-- ======================================================
+         MODAL KELOLA MENU
+    ======================================================= -->
+
+    <div
+        id="menuModal"
+        class="modal"
+        hidden
+        aria-hidden="true"
+    >
+
+        <div
+            id="menuModalOverlay"
+            class="modal-overlay"
+        ></div>
+
+
+        <div
+            class="modal-content"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="menuModalTitle"
+        >
+
+            <div class="modal-header">
+
+                <div>
+
+                    <h2 id="menuModalTitle">
+                        KELOLA MENU
+                    </h2>
+
+                    <p>
+                        Tambah, edit, atau hapus menu.
+                    </p>
+
+                </div>
+
+
+                <button
+                    type="button"
+                    id="closeMenuModal"
+                    class="close-button"
+                    aria-label="Tutup"
+                >
+                    ×
+                </button>
+
+            </div>
+
+
+            <!-- ==================================================
+                 FORM TAMBAH / EDIT MENU
+            =================================================== -->
+
+            <form id="menuForm">
+
+                <input
+                    type="hidden"
+                    id="menuId"
+                >
+
+
+                <div class="form-group">
+
+                    <label for="menuName">
+                        NAMA MENU
+                    </label>
+
+                    <input
+                        type="text"
+                        id="menuName"
+                        maxlength="100"
+                        required
+                        autocomplete="off"
+                        placeholder="Masukkan nama menu"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="menuCategory">
+                        KATEGORI
+                    </label>
+
+                    <input
+                        type="text"
+                        id="menuCategory"
+                        maxlength="50"
+                        autocomplete="off"
+                        placeholder="Contoh: Makanan / Minuman"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="menuPrice">
+                        HARGA
+                    </label>
+
+                    <input
+                        type="number"
+                        id="menuPrice"
+                        min="0"
+                        step="1"
+                        inputmode="numeric"
+                        required
+                        placeholder="Masukkan harga"
+                    >
+
+                </div>
+
+
+                <div
+                    id="menuFormMessage"
+                    class="form-message"
+                    role="alert"
+                    aria-live="polite"
+                ></div>
+
+
+                <div class="modal-actions">
+
+                    <button
+                        type="button"
+                        id="cancelMenuForm"
+                        class="button secondary"
+                    >
+                        BATAL
+                    </button>
+
+
+                    <button
+                        type="submit"
+                        class="button primary"
+                    >
+                        SIMPAN MENU
+                    </button>
+
+                </div>
+
+            </form>
+
+
+            <!-- ==================================================
+                 DAFTAR MENU UNTUK EDIT / HAPUS
+            =================================================== -->
+
+            <div class="managed-menu-section">
+
+                <div class="managed-menu-header">
+
+                    <h3>
+                        DAFTAR MENU
+                    </h3>
+
+
+                    <button
+                        type="button"
+                        id="newMenuButton"
+                        class="button orange small"
+                    >
+                        + MENU BARU
+                    </button>
+
+                </div>
+
+
+                <div
+                    id="managedMenuList"
+                    class="managed-menu-list"
+                ></div>
+
+
+                <div
+                    id="emptyManagedMenu"
+                    class="empty-state"
+                >
+
+                    <p>
+                        Belum ada menu tersimpan.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ======================================================
+         MODAL KONFIRMASI SETEL ULANG
+    ======================================================= -->
+
+    <div
+        id="resetModal"
+        class="modal"
+        hidden
+        aria-hidden="true"
+    >
+
+        <div
+            id="resetModalOverlay"
+            class="modal-overlay"
+        ></div>
+
+
+        <div
+            class="modal-content confirmation-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="resetModalTitle"
+        >
+
+            <div class="modal-header">
+
+                <div>
+
+                    <h2 id="resetModalTitle">
+                        SETEL ULANG PENJUALAN
+                    </h2>
+
+                </div>
+
+
+                <button
+                    type="button"
+                    id="closeResetModal"
+                    class="close-button"
+                    aria-label="Tutup"
+                >
+                    ×
+                </button>
+
+            </div>
+
+
+            <div class="confirmation-content">
+
+                <p>
+                    Semua <strong>penjualan hari ini</strong>
+                    akan dihapus dari Google Sheets dan aplikasi.
+                </p>
+
+                <p>
+                    <strong>MENU DAN HARGA TIDAK AKAN DIHAPUS.</strong>
+                </p>
+
+                <p class="warning-text">
+                    Penjualan hari ini yang dihapus tidak dapat dikembalikan.
+                </p>
+
+            </div>
+
+
+            <div
+                id="resetMessage"
+                class="form-message"
+                role="alert"
+                aria-live="polite"
+            ></div>
+
+
+            <div class="modal-actions">
+
+                <button
+                    type="button"
+                    id="cancelReset"
+                    class="button secondary"
+                >
+                    BATAL
+                </button>
+
+
+                <button
+                    type="button"
+                    id="confirmReset"
+                    class="button danger"
+                >
+                    HAPUS PENJUALAN HARI INI
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ======================================================
+         MODAL PEMBAYARAN BERHASIL
+    ======================================================= -->
+
+    <div
+        id="paymentSuccessModal"
+        class="modal"
+        hidden
+        aria-hidden="true"
+    >
+
+        <div
+            id="paymentSuccessOverlay"
+            class="modal-overlay"
+        ></div>
+
+
+        <div
+            class="modal-content confirmation-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="paymentSuccessTitle"
+        >
+
+            <div class="modal-header">
+
+                <div>
+
+                    <h2 id="paymentSuccessTitle">
+                        PEMBAYARAN SUKSES
+                    </h2>
+
+                    <p>
+                        Transaksi sudah tercatat.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="receipt-summary">
+
+                <div class="summary-row">
+
+                    <span>
+                        NO. TRANSAKSI
+                    </span>
+
+                    <strong id="successTransactionNumber">
+                        -
+                    </strong>
+
+                </div>
+
+
+                <div class="summary-row">
+
+                    <span>
+                        TOTAL
+                    </span>
+
+                    <strong id="successTotal">
+                        Rp0
+                    </strong>
+
+                </div>
+
+
+                <div class="summary-row">
+
+                    <span>
+                        BAYAR
+                    </span>
+
+                    <strong id="successPayment">
+                        Rp0
+                    </strong>
+
+                </div>
+
+
+                <div class="summary-row">
+
+                    <span>
+                        KEMBALIAN
+                    </span>
+
+                    <strong id="successChange">
+                        Rp0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <!-- PRINT TERPISAH DARI BAYAR -->
+
+            <div class="modal-actions vertical-actions">
+
+                <button
+                    type="button"
+                    id="printReceiptButton"
+                    class="button primary large"
+                >
+                    PRINT STRUK
+                </button>
+
+
+                <button
+                    type="button"
+                    id="finishWithoutPrintButton"
+                    class="button secondary large"
+                >
+                    SELESAI / TIDAK PRINT
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ======================================================
+         MODAL DETAIL TRANSAKSI
+    ======================================================= -->
+
+    <div
+        id="saleDetailModal"
+        class="modal"
+        hidden
+        aria-hidden="true"
+    >
+
+        <div
+            id="saleDetailOverlay"
+            class="modal-overlay"
+        ></div>
+
+
+        <div
+            class="modal-content"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="saleDetailTitle"
+        >
+
+            <div class="modal-header">
+
+                <div>
+
+                    <h2 id="saleDetailTitle">
+                        DETAIL TRANSAKSI
+                    </h2>
+
+                    <p id="saleDetailTransactionNumber">
+                        -
+                    </p>
+
+                </div>
+
+
+                <button
+                    type="button"
+                    id="closeSaleDetail"
+                    class="close-button"
+                    aria-label="Tutup"
+                >
+                    ×
+                </button>
+
+            </div>
+
+
+            <div
+                id="saleDetailContent"
+                class="sale-detail-content"
+            ></div>
+
+
+            <div class="modal-actions">
+
+                <button
+                    type="button"
+                    id="printDetailReceipt"
+                    class="button primary"
+                >
+                    PRINT STRUK
+                </button>
+
+
+                <button
+                    type="button"
+                    id="closeSaleDetailButton"
+                    class="button secondary"
+                >
+                    TUTUP
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ======================================================
+         NOTIFIKASI
+    ======================================================= -->
+
+    <div
+        id="notification"
+        class="notification"
+        role="status"
+        aria-live="polite"
+        hidden
+    ></div>
+
+
+    <!-- ======================================================
+         PRINT CONTAINER
+         Dipakai app.js untuk menyiapkan struk sebelum print.
+    ======================================================= -->
+
+    <div
+        id="printArea"
+        class="print-area"
+        aria-hidden="true"
+    ></div>
+
+
+    <!-- ======================================================
+         JAVASCRIPT
+    ======================================================= -->
+
+    <script src="app.js"></script>
+
+</body>
+</html>
