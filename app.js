@@ -126,12 +126,6 @@ function toNumber(value) {
     }
 
 
-    /*
-     * Format Indonesia:
-     * 10.000
-     * 10.000,50
-     */
-
     if (
         text.includes(",") &&
         text.includes(".")
@@ -290,10 +284,6 @@ function normalizeDateKey(value) {
     }
 
 
-    /*
-     * YYYY-MM-DD
-     */
-
     const isoMatch =
         text.match(
             /^(\d{4})-(\d{2})-(\d{2})/
@@ -310,10 +300,6 @@ function normalizeDateKey(value) {
 
     }
 
-
-    /*
-     * DD/MM/YYYY
-     */
 
     const indoMatch =
         text.match(
@@ -336,10 +322,6 @@ function normalizeDateKey(value) {
     }
 
 
-    /*
-     * DD-MM-YYYY
-     */
-
     const dashMatch =
         text.match(
             /^(\d{1,2})-(\d{1,2})-(\d{4})/
@@ -360,10 +342,6 @@ function normalizeDateKey(value) {
 
     }
 
-
-    /*
-     * Coba Date.
-     */
 
     const parsed =
         new Date(text);
@@ -503,26 +481,11 @@ function formatDateTimeIndonesia(
 function escapeHtml(value) {
 
     return String(value ?? "")
-        .replaceAll(
-            "&",
-            "&amp;"
-        )
-        .replaceAll(
-            "<",
-            "&lt;"
-        )
-        .replaceAll(
-            ">",
-            "&gt;"
-        )
-        .replaceAll(
-            '"',
-            "&quot;"
-        )
-        .replaceAll(
-            "'",
-            "&#039;"
-        );
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
 
 }
 
@@ -560,46 +523,31 @@ function generateTransactionNumber() {
 
     const date =
         getTodayKey()
-            .replaceAll(
-                "-",
-                ""
-            );
+            .replaceAll("-", "");
 
 
     const hour =
         String(
             now.getHours()
-        ).padStart(
-            2,
-            "0"
-        );
+        ).padStart(2, "0");
 
 
     const minute =
         String(
             now.getMinutes()
-        ).padStart(
-            2,
-            "0"
-        );
+        ).padStart(2, "0");
 
 
     const second =
         String(
             now.getSeconds()
-        ).padStart(
-            2,
-            "0"
-        );
+        ).padStart(2, "0");
 
 
     const millisecond =
         String(
             now.getMilliseconds()
-        ).padStart(
-            3,
-            "0"
-        );
+        ).padStart(3, "0");
 
 
     const random =
@@ -607,10 +555,7 @@ function generateTransactionNumber() {
             Math.random() * 1000
         )
         .toString()
-        .padStart(
-            3,
-            "0"
-        );
+        .padStart(3, "0");
 
 
     return (
@@ -992,15 +937,10 @@ async function loadMenusFromGoogleSheets() {
 
 
                         return {
-
                             id,
-
                             name,
-
                             category,
-
                             price
-
                         };
 
                     }
@@ -1011,11 +951,6 @@ async function loadMenusFromGoogleSheets() {
                         menu.name
                 );
 
-
-        /*
-         * Jika kategori yang sedang dipilih
-         * sudah tidak tersedia, kembali ke SEMUA.
-         */
 
         const categories =
             getCategories();
@@ -1055,11 +990,6 @@ async function loadMenusFromGoogleSheets() {
             error
         );
 
-
-        /*
-         * Jangan menghapus data menu lama
-         * hanya karena request sementara gagal.
-         */
 
         renderCategories();
 
@@ -1108,8 +1038,7 @@ function getFilteredMenus() {
         menu => {
 
             const matchCategory =
-                state.selectedCategory ===
-                    "all" ||
+                state.selectedCategory === "all" ||
                 menu.category ===
                     state.selectedCategory;
 
@@ -1377,8 +1306,7 @@ function renderCategories() {
     allButton.className =
         "category-button" +
         (
-            state.selectedCategory ===
-                "all"
+            state.selectedCategory === "all"
                 ? " active"
                 : ""
         );
@@ -1424,8 +1352,7 @@ function renderCategories() {
             button.className =
                 "category-button" +
                 (
-                    state.selectedCategory ===
-                        category
+                    state.selectedCategory === category
                         ? " active"
                         : ""
                 );
@@ -1867,8 +1794,7 @@ function renderCart() {
 
                     changeCartQuantity(
                         button.dataset.id,
-                        button.dataset.action ===
-                            "plus"
+                        button.dataset.action === "plus"
                             ? 1
                             : -1
                     );
@@ -1990,16 +1916,6 @@ function updatePaymentUI() {
                 `Uang kurang ${formatRupiah(
                     total - payment
                 )}`;
-
-        }
-
-        else if (
-            state.cart.length > 0 &&
-            payment >= total
-        ) {
-
-            message.textContent =
-                "";
 
         }
 
@@ -2246,8 +2162,7 @@ function editMenu(
     }
 
 
-    $("menuName")
-        ?.focus();
+    $("menuName")?.focus();
 
 }
 
@@ -2957,10 +2872,6 @@ function createSale() {
     };
 
 
-    /*
-     * Validasi akhir sebelum dikirim.
-     */
-
     if (
         !sale.id ||
         !sale.transactionNumber ||
@@ -3017,25 +2928,6 @@ function validateSaleResponse(
     }
 
 
-    /*
-     * Beberapa Apps Script mengembalikan:
-     *
-     * {
-     *   success: true,
-     *   sale: {...}
-     * }
-     *
-     * atau:
-     *
-     * {
-     *   success: true,
-     *   id: "...",
-     *   transactionNumber: "..."
-     * }
-     *
-     * Keduanya diterima.
-     */
-
     const savedSale =
         result.sale ||
         result.data ||
@@ -3058,11 +2950,6 @@ function validateSaleResponse(
         );
 
 
-    /*
-     * Jika server mengirim ID,
-     * pastikan ID sama.
-     */
-
     if (
         returnedId &&
         returnedId !== sale.id
@@ -3080,11 +2967,6 @@ function validateSaleResponse(
 
     }
 
-
-    /*
-     * Jika server mengirim nomor transaksi,
-     * pastikan tidak kosong.
-     */
 
     if (
         "transactionNumber" in savedSale ||
@@ -3166,26 +3048,12 @@ async function processPayment() {
         );
 
 
-        /*
-         * Hanya setelah server menerima transaksi,
-         * transaksi dianggap berhasil.
-         */
-
         state.lastCompletedSale =
             sale;
 
 
-        /*
-         * Ambil ulang data dari server.
-         */
-
         await loadTodaySalesFromGoogleSheets();
 
-
-        /*
-         * Baru kosongkan keranjang.
-         * Jika save gagal, keranjang tetap ada.
-         */
 
         clearCart();
 
@@ -3366,11 +3234,6 @@ async function loadTodaySalesFromGoogleSheets() {
         );
 
 
-        /*
-         * Jangan menghapus state lama
-         * jika request gagal.
-         */
-
         renderSalesHistory();
 
 
@@ -3407,87 +3270,328 @@ function normalizeSales(
 ) {
 
     if (
-    !Array.isArray(
-        sales
-    )
-) {
+        !Array.isArray(
+            sales
+        )
+    ) {
 
-    return [];
+        return [];
 
-}
+    }
 
 
-return sales
-    .map(
-        sale => {
+    return sales
+        .map(
+            sale => {
 
-            /*
-             * =====================================================
-             * JIKA SERVER MENGIRIM ROW SEBAGAI ARRAY
-             *
-             * Kolom spreadsheet:
-             *
-             * A = ID_PENJUALAN
-             * B = NO_TRANSAKSI
-             * C = TANGGAL
-             * D = TANGGAL_KEY
-             *
-             * Jadi:
-             * sale[0] = kolom A
-             * sale[1] = kolom B
-             * sale[2] = kolom C
-             * sale[3] = kolom D
-             * =====================================================
-             */
+                /*
+                 * =====================================================
+                 * JIKA SERVER MENGIRIM ROW SEBAGAI ARRAY
+                 *
+                 * A = ID_PENJUALAN
+                 * B = NO_TRANSAKSI
+                 * C = TANGGAL
+                 * D = TANGGAL_KEY
+                 * E = TOTAL
+                 * F = PEMBAYARAN
+                 * G = KEMBALIAN
+                 * =====================================================
+                 */
 
-            if (
-                Array.isArray(
-                    sale
-                )
-            ) {
+                if (
+                    Array.isArray(
+                        sale
+                    )
+                ) {
+
+                    const id =
+                        toSafeString(
+                            sale[0]
+                        );
+
+
+                    const transactionNumber =
+                        toSafeString(
+                            sale[1]
+                        );
+
+
+                    const rawDate =
+                        sale[2] ??
+                        "";
+
+
+                    const dateKey =
+                        normalizeDateKey(
+                            sale[3]
+                        );
+
+
+                    const total =
+                        toNumber(
+                            sale[4]
+                        );
+
+
+                    const payment =
+                        toNumber(
+                            sale[5]
+                        );
+
+
+                    const change =
+                        toNumber(
+                            sale[6]
+                        );
+
+
+                    return {
+
+                        id,
+
+                        transactionNumber,
+
+                        dateKey,
+
+                        date:
+                            rawDate ||
+                            new Date().toISOString(),
+
+                        items:
+                            [],
+
+                        total,
+
+                        payment,
+
+                        change,
+
+                        itemCount:
+                            0
+
+                    };
+
+                }
+
+
+                /*
+                 * =====================================================
+                 * JIKA SERVER MENGIRIM OBJECT
+                 * =====================================================
+                 */
 
                 const id =
                     toSafeString(
-                        sale[0]
+                        sale.id ??
+                        sale.ID ??
+                        sale.ID_PENJUALAN ??
+                        sale.id_penjualan
                     );
 
 
                 const transactionNumber =
                     toSafeString(
-                        sale[1]
+                        sale.transactionNumber ??
+                        sale.noTransaksi ??
+                        sale.no_transaksi ??
+                        sale.NO_TRANSAKSI
                     );
 
 
                 const rawDate =
-                    sale[2] ??
+                    sale.date ??
+                    sale.timestamp ??
+                    sale.TANGGAL ??
+                    sale.tanggal ??
                     "";
 
 
-                /*
-                 * TANGGAL_KEY WAJIB DARI KOLOM D
-                 */
-
-                const dateKey =
+                let dateKey =
                     normalizeDateKey(
-                        sale[3]
+                        sale.TANGGAL_KEY ??
+                        sale.tanggal_key ??
+                        sale.DATE_KEY
                     );
+
+
+                if (
+                    !dateKey &&
+                    rawDate
+                ) {
+
+                    dateKey =
+                        normalizeDateKey(
+                            rawDate
+                        );
+
+                }
 
 
                 const total =
                     toNumber(
-                        sale[4]
+                        sale.total ??
+                        sale.TOTAL
                     );
 
 
                 const payment =
                     toNumber(
-                        sale[5]
+                        sale.payment ??
+                        sale.pembayaran ??
+                        sale.PEMBAYARAN
                     );
 
 
                 const change =
                     toNumber(
-                        sale[6]
+                        sale.change ??
+                        sale.kembalian ??
+                        sale.KEMBALIAN
+                    );
+
+
+                let items =
+                    sale.items ??
+                    sale.ITEMS ??
+                    sale.detail ??
+                    sale.details ??
+                    sale.DETAIL ??
+                    [];
+
+
+                if (
+                    typeof items ===
+                    "string"
+                ) {
+
+                    try {
+
+                        items =
+                            JSON.parse(
+                                items
+                            );
+
+                    }
+
+                    catch (error) {
+
+                        console.warn(
+                            "Detail transaksi bukan JSON valid:",
+                            error
+                        );
+
+                        items =
+                            [];
+
+                    }
+
+                }
+
+
+                if (
+                    !Array.isArray(
+                        items
+                    )
+                ) {
+
+                    items =
+                        [];
+
+                }
+
+
+                items =
+                    items.map(
+                        item => {
+
+                            const price =
+                                toNumber(
+                                    item.price ??
+                                    item.harga ??
+                                    item.HARGA
+                                );
+
+
+                            const quantity =
+                                toNumber(
+                                    item.quantity ??
+                                    item.jumlah ??
+                                    item.JUMLAH
+                                );
+
+
+                            const subtotalValue =
+                                item.subtotal ??
+                                item.SUBTOTAL;
+
+
+                            const subtotal =
+                                subtotalValue !==
+                                    undefined &&
+                                subtotalValue !==
+                                    null &&
+                                subtotalValue !==
+                                    ""
+                                    ? toNumber(
+                                        subtotalValue
+                                    )
+                                    : price *
+                                      quantity;
+
+
+                            return {
+
+                                menuId:
+                                    toSafeString(
+                                        item.menuId ??
+                                        item.MENU_ID ??
+                                        item.id ??
+                                        item.ID_MENU
+                                    ),
+
+                                name:
+                                    toSafeString(
+                                        item.name ??
+                                        item.nama ??
+                                        item.NAMA
+                                    ),
+
+                                category:
+                                    toSafeString(
+                                        item.category ??
+                                        item.kategori ??
+                                        item.KATEGORI
+                                    ),
+
+                                price,
+
+                                quantity,
+
+                                subtotal
+
+                            };
+
+                        }
+                    );
+
+
+                const itemCount =
+                    toNumber(
+                        sale.itemCount ??
+                        sale.jumlahItem ??
+                        sale.JUMLAH_ITEM ??
+                        sale.jumlah_item
+                    ) ||
+                    items.reduce(
+                        (
+                            sum,
+                            item
+                        ) =>
+                            sum +
+                            toNumber(
+                                item.quantity
+                            ),
+                        0
                     );
 
 
@@ -3503,8 +3607,7 @@ return sales
                         rawDate ||
                         new Date().toISOString(),
 
-                    items:
-                        [],
+                    items,
 
                     total,
 
@@ -3512,298 +3615,21 @@ return sales
 
                     change,
 
-                    itemCount:
-                        0
+                    itemCount
 
                 };
 
             }
-
-
-            /*
-             * =====================================================
-             * JIKA SERVER MENGIRIM OBJECT
-             *
-             * Tetap prioritaskan field TANGGAL_KEY.
-             * Fallback ke date hanya jika TANGGAL_KEY memang
-             * tidak tersedia.
-             * =====================================================
-             */
-
-            const id =
-                toSafeString(
-                    sale.id ??
-                    sale.ID ??
-                    sale.ID_PENJUALAN ??
-                    sale.id_penjualan
-                );
-
-
-            const transactionNumber =
-                toSafeString(
-                    sale.transactionNumber ??
-                    sale.noTransaksi ??
-                    sale.no_transaksi ??
-                    sale.NO_TRANSAKSI
-                );
-
-
-            /*
-             * TANGGAL UTAMA
-             */
-
-            const rawDate =
-                sale.date ??
-                sale.timestamp ??
-                sale.TANGGAL ??
-                sale.tanggal ??
-                "";
-
-
-            /*
-             * =====================================================
-             * TANGGAL_KEY
-             *
-             * PRIORITAS:
-             *
-             * 1. TANGGAL_KEY
-             * 2. DATE_KEY
-             * 3. tanggal_key
-             *
-             * BUKAN dari TANGGAL.
-             *
-             * Karena TANGGAL_KEY berada di kolom D.
-             * =====================================================
-             */
-
-            let dateKey =
-                normalizeDateKey(
-                    sale.TANGGAL_KEY ??
-                    sale.tanggal_key ??
-                    sale.DATE_KEY
-                );
-
-
-            /*
-             * Hanya fallback ke tanggal transaksi jika
-             * TANGGAL_KEY benar-benar tidak ada.
-             */
-
-            if (
-                !dateKey &&
-                rawDate
-            ) {
-
-                dateKey =
-                    normalizeDateKey(
-                        rawDate
-                    );
-
-            }
-
-
-            const total =
-                toNumber(
-                    sale.total ??
-                    sale.TOTAL
-                );
-
-
-            const payment =
-                toNumber(
-                    sale.payment ??
-                    sale.pembayaran ??
-                    sale.PEMBAYARAN
-                );
-
-
-            const change =
-                toNumber(
-                    sale.change ??
-                    sale.kembalian ??
-                    sale.KEMBALIAN
-                );
-
-
-            let items =
-                sale.items ??
-                sale.ITEMS ??
-                sale.detail ??
-                sale.details ??
-                sale.DETAIL ??
-                [];
-
-
-            if (
-                typeof items ===
-                "string"
-            ) {
-
-                try {
-
-                    items =
-                        JSON.parse(
-                            items
-                        );
-
-                }
-
-                catch (error) {
-
-                    console.warn(
-                        "Detail transaksi bukan JSON valid:",
-                        error
-                    );
-
-                    items =
-                        [];
-
-                }
-
-            }
-
-
-            if (
-                !Array.isArray(
-                    items
+        )
+        .filter(
+            sale =>
+                Boolean(
+                    sale.id ||
+                    sale.transactionNumber
                 )
-            ) {
+        );
 
-                items =
-                    [];
-
-            }
-
-
-            items =
-                items.map(
-                    item => {
-
-                        const price =
-                            toNumber(
-                                item.price ??
-                                item.harga ??
-                                item.HARGA
-                            );
-
-
-                        const quantity =
-                            toNumber(
-                                item.quantity ??
-                                item.jumlah ??
-                                item.JUMLAH
-                            );
-
-
-                        const subtotalValue =
-                            item.subtotal ??
-                            item.SUBTOTAL;
-
-
-                        const subtotal =
-                            subtotalValue !==
-                                undefined &&
-                            subtotalValue !==
-                                null &&
-                            subtotalValue !==
-                                ""
-                                ? toNumber(
-                                    subtotalValue
-                                )
-                                : price *
-                                  quantity;
-
-
-                        return {
-
-                            menuId:
-                                toSafeString(
-                                    item.menuId ??
-                                    item.MENU_ID ??
-                                    item.id ??
-                                    item.ID_MENU
-                                ),
-
-                            name:
-                                toSafeString(
-                                    item.name ??
-                                    item.nama ??
-                                    item.NAMA
-                                ),
-
-                            category:
-                                toSafeString(
-                                    item.category ??
-                                    item.kategori ??
-                                    item.KATEGORI
-                                ),
-
-                            price,
-
-                            quantity,
-
-                            subtotal
-
-                        };
-
-                    }
-                );
-
-
-            const itemCount =
-                toNumber(
-                    sale.itemCount ??
-                    sale.jumlahItem ??
-                    sale.JUMLAH_ITEM ??
-                    sale.jumlah_item
-                ) ||
-                items.reduce(
-                    (
-                        sum,
-                        item
-                    ) =>
-                        sum +
-                        toNumber(
-                            item.quantity
-                        ),
-                    0
-                );
-
-
-            return {
-
-                id,
-
-                transactionNumber,
-
-                dateKey,
-
-                date:
-                    rawDate ||
-                    new Date().toISOString(),
-
-                items,
-
-                total,
-
-                payment,
-
-                change,
-
-                itemCount
-
-            };
-
-        }
-    )
-    .filter(
-        sale =>
-            Boolean(
-                sale.id ||
-                sale.transactionNumber
-            )
-    );
-
+}
 
 
 /* =========================================================
@@ -4153,10 +3979,6 @@ function renderSalesHistory() {
                 today
         );
 
-
-    /*
-     * Hanya tampilkan transaksi hari ini.
-     */
 
     if (count) {
 
@@ -4702,9 +4524,7 @@ async function downloadTodaySales() {
                             )
                             .join(",")
                 )
-                .join(
-                    "\r\n"
-                );
+                .join("\r\n");
 
 
         const blob =
@@ -4950,10 +4770,6 @@ async function resetTodaySales() {
 
         }
 
-
-        /*
-         * Ambil ulang dari server.
-         */
 
         await loadTodaySalesFromGoogleSheets();
 
@@ -5494,10 +5310,6 @@ function renderCurrentDate() {
 ========================================================= */
 
 async function refreshAllData() {
-
-    /*
-     * Tetap paralel agar aplikasi cepat.
-     */
 
     await Promise.all([
         loadMenusFromGoogleSheets(),
