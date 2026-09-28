@@ -3407,231 +3407,87 @@ function normalizeSales(
 ) {
 
     if (
-        !Array.isArray(
-            sales
-        )
-    ) {
+    !Array.isArray(
+        sales
+    )
+) {
 
-        return [];
+    return [];
 
-    }
+}
 
 
-    return sales
-        .map(
-            sale => {
+return sales
+    .map(
+        sale => {
+
+            /*
+             * =====================================================
+             * JIKA SERVER MENGIRIM ROW SEBAGAI ARRAY
+             *
+             * Kolom spreadsheet:
+             *
+             * A = ID_PENJUALAN
+             * B = NO_TRANSAKSI
+             * C = TANGGAL
+             * D = TANGGAL_KEY
+             *
+             * Jadi:
+             * sale[0] = kolom A
+             * sale[1] = kolom B
+             * sale[2] = kolom C
+             * sale[3] = kolom D
+             * =====================================================
+             */
+
+            if (
+                Array.isArray(
+                    sale
+                )
+            ) {
 
                 const id =
                     toSafeString(
-                        sale.id ??
-                        sale.ID ??
-                        sale.ID_PENJUALAN ??
-                        sale.id_penjualan
+                        sale[0]
                     );
 
 
                 const transactionNumber =
                     toSafeString(
-                        sale.transactionNumber ??
-                        sale.noTransaksi ??
-                        sale.no_transaksi ??
-                        sale.NO_TRANSAKSI
-                    );
-
-
-                let dateKey =
-                    normalizeDateKey(
-                        sale.dateKey ??
-                        sale.DATE_KEY ??
-                        sale.TANGGAL_KEY ??
-                        sale.tanggal_key
+                        sale[1]
                     );
 
 
                 const rawDate =
-                    sale.date ??
-                    sale.timestamp ??
-                    sale.TANGGAL ??
-                    sale.tanggal ??
+                    sale[2] ??
                     "";
 
 
                 /*
-                 * Fallback tanggal.
+                 * TANGGAL_KEY WAJIB DARI KOLOM D
                  */
 
-                if (
-                    !dateKey
-                ) {
-
-                    dateKey =
-                        normalizeDateKey(
-                            rawDate
-                        );
-
-                }
+                const dateKey =
+                    normalizeDateKey(
+                        sale[3]
+                    );
 
 
                 const total =
                     toNumber(
-                        sale.total ??
-                        sale.TOTAL
+                        sale[4]
                     );
 
 
                 const payment =
                     toNumber(
-                        sale.payment ??
-                        sale.pembayaran ??
-                        sale.PEMBAYARAN
+                        sale[5]
                     );
 
 
                 const change =
                     toNumber(
-                        sale.change ??
-                        sale.kembalian ??
-                        sale.KEMBALIAN
-                    );
-
-
-                let items =
-                    sale.items ??
-                    sale.ITEMS ??
-                    sale.detail ??
-                    sale.details ??
-                    sale.DETAIL ??
-                    [];
-
-
-                if (
-                    typeof items ===
-                    "string"
-                ) {
-
-                    try {
-
-                        items =
-                            JSON.parse(
-                                items
-                            );
-
-                    }
-
-                    catch (error) {
-
-                        items =
-                            [];
-
-                    }
-
-                }
-
-
-                if (
-                    !Array.isArray(
-                        items
-                    )
-                ) {
-
-                    items =
-                        [];
-
-                }
-
-
-                items =
-                    items.map(
-                        item => {
-
-                            const price =
-                                toNumber(
-                                    item.price ??
-                                    item.harga ??
-                                    item.HARGA
-                                );
-
-
-                            const quantity =
-                                toNumber(
-                                    item.quantity ??
-                                    item.jumlah ??
-                                    item.JUMLAH
-                                );
-
-
-                            const subtotalValue =
-                                item.subtotal ??
-                                item.SUBTOTAL;
-
-
-                            const subtotal =
-                                subtotalValue !==
-                                    undefined &&
-                                subtotalValue !==
-                                    null &&
-                                subtotalValue !==
-                                    ""
-                                    ? toNumber(
-                                        subtotalValue
-                                    )
-                                    : price *
-                                      quantity;
-
-
-                            return {
-
-                                menuId:
-                                    toSafeString(
-                                        item.menuId ??
-                                        item.MENU_ID ??
-                                        item.id ??
-                                        item.ID_MENU
-                                    ),
-
-                                name:
-                                    toSafeString(
-                                        item.name ??
-                                        item.nama ??
-                                        item.NAMA
-                                    ),
-
-                                category:
-                                    toSafeString(
-                                        item.category ??
-                                        item.kategori ??
-                                        item.KATEGORI
-                                    ),
-
-                                price,
-
-                                quantity,
-
-                                subtotal
-
-                            };
-
-                        }
-                    );
-
-
-                const itemCount =
-                    toNumber(
-                        sale.itemCount ??
-                        sale.jumlahItem ??
-                        sale.JUMLAH_ITEM ??
-                        sale.jumlah_item
-                    ) ||
-                    items.reduce(
-                        (
-                            sum,
-                            item
-                        ) =>
-                            sum +
-                            toNumber(
-                                item.quantity
-                            ),
-                        0
+                        sale[6]
                     );
 
 
@@ -3647,7 +3503,8 @@ function normalizeSales(
                         rawDate ||
                         new Date().toISOString(),
 
-                    items,
+                    items:
+                        [],
 
                     total,
 
@@ -3655,21 +3512,298 @@ function normalizeSales(
 
                     change,
 
-                    itemCount
+                    itemCount:
+                        0
 
                 };
 
             }
-        )
-        .filter(
-            sale =>
-                Boolean(
-                    sale.id ||
-                    sale.transactionNumber
-                )
-        );
 
-}
+
+            /*
+             * =====================================================
+             * JIKA SERVER MENGIRIM OBJECT
+             *
+             * Tetap prioritaskan field TANGGAL_KEY.
+             * Fallback ke date hanya jika TANGGAL_KEY memang
+             * tidak tersedia.
+             * =====================================================
+             */
+
+            const id =
+                toSafeString(
+                    sale.id ??
+                    sale.ID ??
+                    sale.ID_PENJUALAN ??
+                    sale.id_penjualan
+                );
+
+
+            const transactionNumber =
+                toSafeString(
+                    sale.transactionNumber ??
+                    sale.noTransaksi ??
+                    sale.no_transaksi ??
+                    sale.NO_TRANSAKSI
+                );
+
+
+            /*
+             * TANGGAL UTAMA
+             */
+
+            const rawDate =
+                sale.date ??
+                sale.timestamp ??
+                sale.TANGGAL ??
+                sale.tanggal ??
+                "";
+
+
+            /*
+             * =====================================================
+             * TANGGAL_KEY
+             *
+             * PRIORITAS:
+             *
+             * 1. TANGGAL_KEY
+             * 2. DATE_KEY
+             * 3. tanggal_key
+             *
+             * BUKAN dari TANGGAL.
+             *
+             * Karena TANGGAL_KEY berada di kolom D.
+             * =====================================================
+             */
+
+            let dateKey =
+                normalizeDateKey(
+                    sale.TANGGAL_KEY ??
+                    sale.tanggal_key ??
+                    sale.DATE_KEY
+                );
+
+
+            /*
+             * Hanya fallback ke tanggal transaksi jika
+             * TANGGAL_KEY benar-benar tidak ada.
+             */
+
+            if (
+                !dateKey &&
+                rawDate
+            ) {
+
+                dateKey =
+                    normalizeDateKey(
+                        rawDate
+                    );
+
+            }
+
+
+            const total =
+                toNumber(
+                    sale.total ??
+                    sale.TOTAL
+                );
+
+
+            const payment =
+                toNumber(
+                    sale.payment ??
+                    sale.pembayaran ??
+                    sale.PEMBAYARAN
+                );
+
+
+            const change =
+                toNumber(
+                    sale.change ??
+                    sale.kembalian ??
+                    sale.KEMBALIAN
+                );
+
+
+            let items =
+                sale.items ??
+                sale.ITEMS ??
+                sale.detail ??
+                sale.details ??
+                sale.DETAIL ??
+                [];
+
+
+            if (
+                typeof items ===
+                "string"
+            ) {
+
+                try {
+
+                    items =
+                        JSON.parse(
+                            items
+                        );
+
+                }
+
+                catch (error) {
+
+                    console.warn(
+                        "Detail transaksi bukan JSON valid:",
+                        error
+                    );
+
+                    items =
+                        [];
+
+                }
+
+            }
+
+
+            if (
+                !Array.isArray(
+                    items
+                )
+            ) {
+
+                items =
+                    [];
+
+            }
+
+
+            items =
+                items.map(
+                    item => {
+
+                        const price =
+                            toNumber(
+                                item.price ??
+                                item.harga ??
+                                item.HARGA
+                            );
+
+
+                        const quantity =
+                            toNumber(
+                                item.quantity ??
+                                item.jumlah ??
+                                item.JUMLAH
+                            );
+
+
+                        const subtotalValue =
+                            item.subtotal ??
+                            item.SUBTOTAL;
+
+
+                        const subtotal =
+                            subtotalValue !==
+                                undefined &&
+                            subtotalValue !==
+                                null &&
+                            subtotalValue !==
+                                ""
+                                ? toNumber(
+                                    subtotalValue
+                                )
+                                : price *
+                                  quantity;
+
+
+                        return {
+
+                            menuId:
+                                toSafeString(
+                                    item.menuId ??
+                                    item.MENU_ID ??
+                                    item.id ??
+                                    item.ID_MENU
+                                ),
+
+                            name:
+                                toSafeString(
+                                    item.name ??
+                                    item.nama ??
+                                    item.NAMA
+                                ),
+
+                            category:
+                                toSafeString(
+                                    item.category ??
+                                    item.kategori ??
+                                    item.KATEGORI
+                                ),
+
+                            price,
+
+                            quantity,
+
+                            subtotal
+
+                        };
+
+                    }
+                );
+
+
+            const itemCount =
+                toNumber(
+                    sale.itemCount ??
+                    sale.jumlahItem ??
+                    sale.JUMLAH_ITEM ??
+                    sale.jumlah_item
+                ) ||
+                items.reduce(
+                    (
+                        sum,
+                        item
+                    ) =>
+                        sum +
+                        toNumber(
+                            item.quantity
+                        ),
+                    0
+                );
+
+
+            return {
+
+                id,
+
+                transactionNumber,
+
+                dateKey,
+
+                date:
+                    rawDate ||
+                    new Date().toISOString(),
+
+                items,
+
+                total,
+
+                payment,
+
+                change,
+
+                itemCount
+
+            };
+
+        }
+    )
+    .filter(
+        sale =>
+            Boolean(
+                sale.id ||
+                sale.transactionNumber
+            )
+    );
+
 
 
 /* =========================================================
