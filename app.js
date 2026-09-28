@@ -31,7 +31,7 @@
    Jangan isi dengan URL palsu.
 ========================================================= */
 
-const GOOGLE_SCRIPT_URL = "";
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwBPxsQ6v0co6-D-tQ-6-Kn4tCsJkrrwEGC22lasI94ASuQvCB_xp-gR7tEoFFD8nTbQw/exec";
 
 
 /* =========================================================
