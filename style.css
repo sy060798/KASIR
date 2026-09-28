@@ -1,0 +1,1932 @@
+/* =========================================================
+   RESET & DASAR
+========================================================= */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --blue: #1565c0;
+    --blue-dark: #0d47a1;
+    --blue-light: #e3f2fd;
+
+    --orange: #f57c00;
+    --orange-dark: #e65100;
+    --orange-light: #fff3e0;
+
+    --black: #111111;
+    --dark: #222222;
+    --gray-dark: #555555;
+    --gray: #777777;
+    --gray-light: #e5e7eb;
+    --gray-bg: #f5f7fa;
+
+    --white: #ffffff;
+    --green: #16803c;
+    --green-light: #e8f5e9;
+
+    --red: #d32f2f;
+    --red-light: #ffebee;
+
+    --shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+    --radius: 10px;
+
+    --header-height: 70px;
+}
+
+html {
+    min-height: 100%;
+    background: var(--gray-bg);
+}
+
+body {
+    min-height: 100vh;
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    background: var(--gray-bg);
+    color: var(--black);
+
+    line-height: 1.4;
+}
+
+
+/* =========================================================
+   BUTTON RESET
+========================================================= */
+
+button,
+input {
+    font-family: inherit;
+}
+
+button {
+    border: 0;
+}
+
+button:focus-visible,
+input:focus-visible {
+    outline: 3px solid rgba(21, 101, 192, 0.25);
+    outline-offset: 2px;
+}
+
+
+/* =========================================================
+   APP
+========================================================= */
+
+.app {
+    width: 100%;
+    min-height: 100vh;
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.app-header {
+    height: var(--header-height);
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 0 24px;
+
+    background: var(--white);
+
+    border-bottom: 3px solid var(--blue);
+
+    position: sticky;
+    top: 0;
+
+    z-index: 50;
+
+    box-shadow: var(--shadow);
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.store-logo {
+    width: 42px;
+    height: 42px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: var(--blue);
+    color: var(--white);
+
+    border-radius: 8px;
+
+    font-size: 22px;
+    font-weight: 800;
+}
+
+#storeName {
+    font-size: 21px;
+    font-weight: 800;
+    color: var(--black);
+}
+
+#currentDate {
+    margin-top: 2px;
+
+    color: var(--gray);
+    font-size: 13px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+}
+
+.connection-status {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+
+    color: var(--gray-dark);
+
+    font-size: 12px;
+}
+
+.status-dot {
+    width: 9px;
+    height: 9px;
+
+    border-radius: 50%;
+
+    display: inline-block;
+}
+
+.status-dot.online {
+    background: var(--green);
+}
+
+.status-dot.offline {
+    background: var(--red);
+}
+
+.status-dot.loading {
+    background: var(--orange);
+}
+
+
+/* =========================================================
+   LAYOUT UTAMA
+   KIRI  = PESANAN
+   KANAN = MENU
+========================================================= */
+
+.cashier-layout {
+    width: 100%;
+    max-width: 1700px;
+
+    margin: 0 auto;
+
+    padding: 18px 20px;
+
+    display: grid;
+
+    grid-template-columns:
+        minmax(380px, 0.85fr)
+        minmax(520px, 1.15fr);
+
+    gap: 18px;
+
+    align-items: stretch;
+}
+
+
+/* =========================================================
+   SECTION
+========================================================= */
+
+.order-section,
+.menu-section,
+.sales-section {
+    background: var(--white);
+
+    border: 1px solid var(--gray-light);
+
+    border-radius: var(--radius);
+
+    box-shadow: var(--shadow);
+}
+
+.order-section,
+.menu-section {
+    min-width: 0;
+}
+
+
+/* =========================================================
+   HEADER SECTION
+========================================================= */
+
+.section-header {
+    min-height: 70px;
+
+    padding: 15px 17px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 12px;
+
+    border-bottom: 1px solid var(--gray-light);
+}
+
+.section-header h2,
+.sales-header h2 {
+    font-size: 18px;
+    font-weight: 800;
+
+    color: var(--black);
+}
+
+.section-header p,
+.sales-header p {
+    margin-top: 3px;
+
+    color: var(--gray);
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   BUTTON UMUM
+========================================================= */
+
+.button {
+    min-height: 40px;
+
+    padding: 9px 15px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 7px;
+
+    font-size: 12px;
+    font-weight: 800;
+
+    cursor: pointer;
+
+    transition:
+        background 0.15s ease,
+        transform 0.1s ease,
+        border-color 0.15s ease;
+}
+
+.button:active {
+    transform: translateY(1px);
+}
+
+.button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+}
+
+
+/* BIRU */
+
+.button.primary {
+    background: var(--blue);
+    color: var(--white);
+}
+
+.button.primary:hover:not(:disabled) {
+    background: var(--blue-dark);
+}
+
+
+/* ORANGE */
+
+.button.orange {
+    background: var(--orange);
+    color: var(--white);
+}
+
+.button.orange:hover:not(:disabled) {
+    background: var(--orange-dark);
+}
+
+
+/* SECONDARY */
+
+.button.secondary {
+    background: var(--white);
+    color: var(--blue);
+
+    border: 1px solid var(--blue);
+}
+
+.button.secondary:hover:not(:disabled) {
+    background: var(--blue-light);
+}
+
+
+/* DANGER */
+
+.button.danger {
+    background: var(--red);
+    color: var(--white);
+}
+
+.button.danger:hover:not(:disabled) {
+    background: #b71c1c;
+}
+
+
+/* DANGER OUTLINE */
+
+.button.danger-outline {
+    background: var(--white);
+
+    color: var(--red);
+
+    border: 1px solid var(--red);
+}
+
+.button.danger-outline:hover:not(:disabled) {
+    background: var(--red-light);
+}
+
+
+/* BUTTON SIZE */
+
+.button.large {
+    min-height: 48px;
+    font-size: 14px;
+}
+
+.button.small {
+    min-height: 34px;
+    padding: 7px 11px;
+    font-size: 11px;
+}
+
+
+/* =========================================================
+   BAGIAN PESANAN
+========================================================= */
+
+.order-section {
+    height: calc(100vh - var(--header-height) - 36px);
+
+    min-height: 600px;
+
+    display: flex;
+    flex-direction: column;
+
+    overflow: hidden;
+}
+
+
+/* =========================================================
+   CART LIST
+   SCROLL ATAS / BAWAH
+========================================================= */
+
+.cart-list {
+    flex: 1;
+
+    min-height: 180px;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    padding: 10px 12px;
+
+    scrollbar-width: thin;
+    scrollbar-color: var(--blue) #eeeeee;
+}
+
+.cart-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.cart-list::-webkit-scrollbar-track {
+    background: #eeeeee;
+}
+
+.cart-list::-webkit-scrollbar-thumb {
+    background: var(--blue);
+    border-radius: 10px;
+}
+
+.cart-list::-webkit-scrollbar-thumb:hover {
+    background: var(--blue-dark);
+}
+
+
+/* =========================================================
+   ITEM PESANAN
+========================================================= */
+
+.cart-item {
+    background: var(--white);
+
+    border: 1px solid var(--gray-light);
+
+    border-left: 4px solid var(--blue);
+
+    border-radius: 8px;
+
+    padding: 12px;
+
+    margin-bottom: 9px;
+}
+
+.cart-item:last-child {
+    margin-bottom: 0;
+}
+
+.cart-item-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+
+    gap: 10px;
+}
+
+.cart-item-name {
+    color: var(--black);
+
+    font-size: 14px;
+    font-weight: 800;
+
+    word-break: break-word;
+}
+
+.cart-item-price {
+    color: var(--orange-dark);
+
+    font-size: 14px;
+    font-weight: 800;
+
+    white-space: nowrap;
+}
+
+.cart-item-subtotal {
+    margin-top: 4px;
+
+    color: var(--gray);
+
+    font-size: 11px;
+}
+
+
+/* =========================================================
+   QTY
+========================================================= */
+
+.cart-item-controls {
+    margin-top: 10px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 10px;
+}
+
+.quantity-controls {
+    display: flex;
+    align-items: center;
+
+    border: 1px solid var(--gray-light);
+
+    border-radius: 6px;
+
+    overflow: hidden;
+}
+
+.quantity-button {
+    width: 34px;
+    height: 32px;
+
+    background: var(--blue-light);
+
+    color: var(--blue);
+
+    font-size: 17px;
+    font-weight: 800;
+
+    cursor: pointer;
+}
+
+.quantity-button:hover {
+    background: #bbdefb;
+}
+
+.quantity-value {
+    min-width: 38px;
+
+    text-align: center;
+
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.remove-cart-item {
+    background: transparent;
+
+    color: var(--red);
+
+    font-size: 11px;
+    font-weight: 700;
+
+    cursor: pointer;
+}
+
+.remove-cart-item:hover {
+    text-decoration: underline;
+}
+
+
+/* =========================================================
+   EMPTY STATE
+========================================================= */
+
+.empty-state {
+    padding: 35px 20px;
+
+    text-align: center;
+
+    color: var(--gray);
+
+    flex-shrink: 0;
+}
+
+.empty-icon {
+    width: 48px;
+    height: 48px;
+
+    margin: 0 auto 12px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: var(--blue-light);
+
+    color: var(--blue);
+
+    border-radius: 50%;
+
+    font-size: 25px;
+    font-weight: 700;
+}
+
+.empty-state h3 {
+    margin-bottom: 6px;
+
+    color: var(--dark);
+
+    font-size: 14px;
+}
+
+.empty-state p {
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   PAYMENT BOX
+========================================================= */
+
+.payment-box {
+    flex-shrink: 0;
+
+    padding: 15px 17px;
+
+    border-top: 2px solid var(--gray-light);
+
+    background: #fafafa;
+}
+
+.summary-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 12px;
+
+    padding: 7px 0;
+}
+
+.summary-row span {
+    color: var(--gray-dark);
+
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.summary-row strong {
+    color: var(--black);
+
+    font-size: 15px;
+}
+
+.total-row {
+    padding-top: 0;
+    padding-bottom: 12px;
+
+    border-bottom: 1px solid var(--gray-light);
+}
+
+.total-row span {
+    color: var(--black);
+}
+
+.total-row strong {
+    color: var(--blue);
+
+    font-size: 23px;
+}
+
+
+/* =========================================================
+   PAYMENT INPUT
+========================================================= */
+
+.payment-field {
+    margin-top: 12px;
+}
+
+.payment-field label,
+.search-box label,
+.form-group label {
+    display: block;
+
+    margin-bottom: 6px;
+
+    color: var(--black);
+
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.payment-field input {
+    width: 100%;
+
+    height: 46px;
+
+    padding: 0 12px;
+
+    background: var(--white);
+
+    border: 2px solid var(--gray-light);
+
+    border-radius: 7px;
+
+    color: var(--black);
+
+    font-size: 18px;
+    font-weight: 700;
+
+    outline: none;
+}
+
+.payment-field input:focus {
+    border-color: var(--blue);
+}
+
+.change-row {
+    margin-top: 4px;
+
+    padding: 10px;
+
+    background: var(--orange-light);
+
+    border: 1px solid #ffcc80;
+
+    border-radius: 6px;
+}
+
+.change-row strong {
+    color: var(--orange-dark);
+
+    font-size: 18px;
+}
+
+.payment-message {
+    min-height: 18px;
+
+    margin: 7px 0;
+
+    color: var(--red);
+
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.pay-button {
+    width: 100%;
+
+    margin-top: 4px;
+
+    font-size: 15px;
+}
+
+
+/* =========================================================
+   BAGIAN MENU
+========================================================= */
+
+.menu-section {
+    height: calc(100vh - var(--header-height) - 36px);
+
+    min-height: 600px;
+
+    display: flex;
+    flex-direction: column;
+
+    overflow: hidden;
+}
+
+
+/* =========================================================
+   SEARCH
+========================================================= */
+
+.search-box {
+    flex-shrink: 0;
+
+    padding: 13px 15px 9px;
+}
+
+.search-box input {
+    width: 100%;
+
+    height: 44px;
+
+    padding: 0 13px;
+
+    background: var(--white);
+
+    border: 2px solid var(--gray-light);
+
+    border-radius: 7px;
+
+    color: var(--black);
+
+    font-size: 14px;
+
+    outline: none;
+}
+
+.search-box input:focus {
+    border-color: var(--blue);
+}
+
+
+/* =========================================================
+   CATEGORY
+========================================================= */
+
+.category-filter {
+    flex-shrink: 0;
+
+    display: flex;
+
+    gap: 7px;
+
+    padding: 2px 15px 11px;
+
+    overflow-x: auto;
+
+    scrollbar-width: thin;
+}
+
+.category-button {
+    flex-shrink: 0;
+
+    min-height: 32px;
+
+    padding: 6px 12px;
+
+    background: var(--white);
+
+    color: var(--gray-dark);
+
+    border: 1px solid var(--gray-light);
+
+    border-radius: 20px;
+
+    font-size: 11px;
+    font-weight: 800;
+
+    cursor: pointer;
+}
+
+.category-button:hover {
+    border-color: var(--blue);
+    color: var(--blue);
+}
+
+.category-button.active {
+    background: var(--blue);
+
+    color: var(--white);
+
+    border-color: var(--blue);
+}
+
+
+/* =========================================================
+   MENU LIST
+   SCROLL ATAS / BAWAH
+========================================================= */
+
+.menu-list {
+    flex: 1;
+
+    min-height: 0;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    padding: 4px 15px 15px;
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, minmax(140px, 1fr));
+
+    align-content: start;
+
+    gap: 10px;
+
+    scrollbar-width: thin;
+    scrollbar-color: var(--orange) #eeeeee;
+}
+
+.menu-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.menu-list::-webkit-scrollbar-track {
+    background: #eeeeee;
+}
+
+.menu-list::-webkit-scrollbar-thumb {
+    background: var(--orange);
+    border-radius: 10px;
+}
+
+.menu-list::-webkit-scrollbar-thumb:hover {
+    background: var(--orange-dark);
+}
+
+
+/* =========================================================
+   MENU CARD
+========================================================= */
+
+.menu-card {
+    min-height: 115px;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+
+    padding: 13px;
+
+    background: var(--white);
+
+    border: 1px solid var(--gray-light);
+
+    border-top: 4px solid var(--blue);
+
+    border-radius: 8px;
+
+    cursor: pointer;
+
+    transition:
+        border-color 0.15s ease,
+        box-shadow 0.15s ease,
+        transform 0.1s ease;
+}
+
+.menu-card:hover {
+    border-color: var(--blue);
+
+    box-shadow:
+        0 4px 14px rgba(21, 101, 192, 0.14);
+
+    transform: translateY(-1px);
+}
+
+.menu-card:active {
+    transform: translateY(0);
+}
+
+.menu-card-name {
+    color: var(--black);
+
+    font-size: 14px;
+    font-weight: 800;
+
+    line-height: 1.3;
+
+    word-break: break-word;
+}
+
+.menu-card-category {
+    margin-top: 4px;
+
+    color: var(--gray);
+
+    font-size: 10px;
+}
+
+.menu-card-bottom {
+    margin-top: 10px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 8px;
+}
+
+.menu-card-price {
+    color: var(--orange-dark);
+
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.menu-card-add {
+    width: 30px;
+    height: 30px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: var(--blue);
+
+    color: var(--white);
+
+    border-radius: 6px;
+
+    font-size: 18px;
+    font-weight: 800;
+}
+
+
+/* =========================================================
+   MENU TERPILIH
+========================================================= */
+
+.menu-card.selected {
+    border-color: var(--orange);
+
+    border-top-color: var(--orange);
+
+    background: var(--orange-light);
+}
+
+.menu-card.selected .menu-card-add {
+    background: var(--orange);
+}
+
+
+/* =========================================================
+   SALES SECTION
+========================================================= */
+
+.sales-section {
+    width: calc(100% - 40px);
+
+    max-width: 1700px;
+
+    margin: 0 auto 20px;
+
+    overflow: hidden;
+}
+
+.sales-header {
+    min-height: 80px;
+
+    padding: 15px 17px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 15px;
+
+    border-bottom: 1px solid var(--gray-light);
+}
+
+
+/* =========================================================
+   SALES SUMMARY
+========================================================= */
+
+.sales-summary {
+    display: flex;
+    gap: 10px;
+}
+
+.sales-stat {
+    min-width: 145px;
+
+    padding: 9px 13px;
+
+    background: var(--blue-light);
+
+    border-left: 4px solid var(--blue);
+
+    border-radius: 6px;
+}
+
+.sales-stat:last-child {
+    background: var(--orange-light);
+
+    border-left-color: var(--orange);
+}
+
+.sales-stat span {
+    display: block;
+
+    color: var(--gray-dark);
+
+    font-size: 9px;
+    font-weight: 800;
+}
+
+.sales-stat strong {
+    display: block;
+
+    margin-top: 2px;
+
+    color: var(--black);
+
+    font-size: 17px;
+}
+
+
+/* =========================================================
+   SALES ACTIONS
+========================================================= */
+
+.sales-actions {
+    padding: 12px 15px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 10px;
+
+    border-bottom: 1px solid var(--gray-light);
+}
+
+
+/* =========================================================
+   SALES HISTORY
+========================================================= */
+
+.sales-history {
+    max-height: 380px;
+
+    overflow-y: auto;
+
+    padding: 10px 15px;
+
+    scrollbar-width: thin;
+    scrollbar-color: var(--blue) #eeeeee;
+}
+
+.sales-history::-webkit-scrollbar {
+    width: 8px;
+}
+
+.sales-history::-webkit-scrollbar-track {
+    background: #eeeeee;
+}
+
+.sales-history::-webkit-scrollbar-thumb {
+    background: var(--blue);
+    border-radius: 10px;
+}
+
+
+/* =========================================================
+   SALES ITEM
+========================================================= */
+
+.sale-item {
+    padding: 12px;
+
+    margin-bottom: 8px;
+
+    background: var(--white);
+
+    border: 1px solid var(--gray-light);
+
+    border-left: 4px solid var(--blue);
+
+    border-radius: 7px;
+
+    cursor: pointer;
+}
+
+.sale-item:hover {
+    background: var(--blue-light);
+}
+
+.sale-item:last-child {
+    margin-bottom: 0;
+}
+
+.sale-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 10px;
+}
+
+.sale-item-number {
+    color: var(--blue);
+
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.sale-item-total {
+    color: var(--orange-dark);
+
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.sale-item-info {
+    margin-top: 4px;
+
+    color: var(--gray);
+
+    font-size: 10px;
+}
+
+
+/* =========================================================
+   MODAL
+========================================================= */
+
+.modal {
+    position: fixed;
+
+    inset: 0;
+
+    z-index: 1000;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 20px;
+}
+
+.modal[hidden] {
+    display: none;
+}
+
+.modal-overlay {
+    position: absolute;
+
+    inset: 0;
+
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.modal-content {
+    position: relative;
+
+    width: 100%;
+    max-width: 620px;
+
+    max-height: calc(100vh - 40px);
+
+    overflow-y: auto;
+
+    background: var(--white);
+
+    border-radius: 10px;
+
+    box-shadow:
+        0 15px 50px rgba(0, 0, 0, 0.3);
+
+    z-index: 1;
+}
+
+
+/* =========================================================
+   MODAL HEADER
+========================================================= */
+
+.modal-header {
+    min-height: 65px;
+
+    padding: 14px 17px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 12px;
+
+    border-bottom: 1px solid var(--gray-light);
+}
+
+.modal-header h2 {
+    font-size: 17px;
+    font-weight: 800;
+}
+
+.modal-header p {
+    margin-top: 3px;
+
+    color: var(--gray);
+
+    font-size: 11px;
+}
+
+.close-button {
+    width: 34px;
+    height: 34px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: var(--gray-bg);
+
+    color: var(--black);
+
+    border-radius: 6px;
+
+    font-size: 23px;
+
+    cursor: pointer;
+}
+
+.close-button:hover {
+    background: var(--red-light);
+
+    color: var(--red);
+}
+
+
+/* =========================================================
+   FORM
+========================================================= */
+
+#menuForm {
+    padding: 16px 17px;
+
+    border-bottom: 1px solid var(--gray-light);
+}
+
+.form-group {
+    margin-bottom: 13px;
+}
+
+.form-group input {
+    width: 100%;
+
+    height: 42px;
+
+    padding: 0 11px;
+
+    background: var(--white);
+
+    border: 1px solid var(--gray-light);
+
+    border-radius: 6px;
+
+    color: var(--black);
+
+    font-size: 13px;
+
+    outline: none;
+}
+
+.form-group input:focus {
+    border-color: var(--blue);
+}
+
+.form-message {
+    min-height: 18px;
+
+    margin-bottom: 8px;
+
+    color: var(--red);
+
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+
+    gap: 8px;
+
+    padding: 14px 17px;
+}
+
+.vertical-actions {
+    flex-direction: column;
+}
+
+
+/* =========================================================
+   MANAGED MENU
+========================================================= */
+
+.managed-menu-section {
+    padding: 15px 17px;
+}
+
+.managed-menu-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 10px;
+
+    margin-bottom: 10px;
+}
+
+.managed-menu-header h3 {
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.managed-menu-list {
+    max-height: 300px;
+
+    overflow-y: auto;
+}
+
+.managed-menu-item {
+    padding: 10px;
+
+    margin-bottom: 7px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 10px;
+
+    border: 1px solid var(--gray-light);
+
+    border-radius: 7px;
+}
+
+.managed-menu-info {
+    min-width: 0;
+}
+
+.managed-menu-name {
+    font-size: 13px;
+    font-weight: 800;
+
+    word-break: break-word;
+}
+
+.managed-menu-price {
+    margin-top: 2px;
+
+    color: var(--orange-dark);
+
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.managed-menu-actions {
+    flex-shrink: 0;
+
+    display: flex;
+
+    gap: 5px;
+}
+
+.menu-edit-button,
+.menu-delete-button {
+    min-height: 32px;
+
+    padding: 6px 9px;
+
+    border-radius: 5px;
+
+    font-size: 10px;
+    font-weight: 800;
+
+    cursor: pointer;
+}
+
+.menu-edit-button {
+    background: var(--blue-light);
+
+    color: var(--blue);
+}
+
+.menu-delete-button {
+    background: var(--red-light);
+
+    color: var(--red);
+}
+
+
+/* =========================================================
+   CONFIRMATION
+========================================================= */
+
+.confirmation-content {
+    padding: 20px 17px 5px;
+
+    color: var(--gray-dark);
+
+    font-size: 13px;
+}
+
+.confirmation-content p {
+    margin-bottom: 12px;
+}
+
+.warning-text {
+    padding: 10px;
+
+    background: var(--red-light);
+
+    color: var(--red);
+
+    border-left: 4px solid var(--red);
+
+    border-radius: 5px;
+
+    font-weight: 700;
+}
+
+
+/* =========================================================
+   RECEIPT SUMMARY
+========================================================= */
+
+.receipt-summary {
+    padding: 15px 17px;
+
+    background: var(--gray-bg);
+
+    border-bottom: 1px solid var(--gray-light);
+}
+
+.receipt-summary .summary-row {
+    padding: 8px 0;
+}
+
+.receipt-summary strong {
+    color: var(--blue);
+}
+
+
+/* =========================================================
+   DETAIL TRANSAKSI
+========================================================= */
+
+.sale-detail-content {
+    padding: 15px 17px;
+
+    max-height: 420px;
+
+    overflow-y: auto;
+}
+
+.sale-detail-row {
+    padding: 9px 0;
+
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+
+    gap: 10px;
+
+    border-bottom: 1px solid var(--gray-light);
+
+    font-size: 12px;
+}
+
+.sale-detail-row:last-child {
+    border-bottom: 0;
+}
+
+.sale-detail-name {
+    font-weight: 700;
+}
+
+.sale-detail-value {
+    color: var(--orange-dark);
+
+    font-weight: 800;
+
+    white-space: nowrap;
+}
+
+
+/* =========================================================
+   NOTIFICATION
+========================================================= */
+
+.notification {
+    position: fixed;
+
+    right: 20px;
+    bottom: 20px;
+
+    z-index: 2000;
+
+    max-width: 360px;
+
+    padding: 12px 15px;
+
+    background: var(--black);
+
+    color: var(--white);
+
+    border-radius: 7px;
+
+    box-shadow:
+        0 8px 25px rgba(0, 0, 0, 0.25);
+
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.notification.success {
+    background: var(--green);
+}
+
+.notification.error {
+    background: var(--red);
+}
+
+.notification.warning {
+    background: var(--orange-dark);
+}
+
+
+/* =========================================================
+   PRINT AREA
+========================================================= */
+
+.print-area {
+    display: none;
+}
+
+
+/* =========================================================
+   SCROLLBAR UMUM
+========================================================= */
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--blue) #eeeeee;
+}
+
+*::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+}
+
+*::-webkit-scrollbar-track {
+    background: #eeeeee;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: var(--blue);
+
+    border-radius: 10px;
+}
+
+
+/* =========================================================
+   RESPONSIVE LAPTOP
+========================================================= */
+
+@media (max-width: 1200px) {
+
+    .cashier-layout {
+        grid-template-columns:
+            minmax(350px, 0.9fr)
+            minmax(450px, 1.1fr);
+    }
+
+    .menu-list {
+        grid-template-columns:
+            repeat(2, minmax(140px, 1fr));
+    }
+
+}
+
+
+/* =========================================================
+   TABLET
+========================================================= */
+
+@media (max-width: 900px) {
+
+    .cashier-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .order-section,
+    .menu-section {
+        height: auto;
+
+        min-height: 500px;
+    }
+
+    .order-section {
+        order: 1;
+    }
+
+    .menu-section {
+        order: 2;
+    }
+
+    .cart-list {
+        max-height: 430px;
+    }
+
+    .menu-list {
+        min-height: 400px;
+
+        max-height: 600px;
+    }
+
+}
+
+
+/* =========================================================
+   HP
+========================================================= */
+
+@media (max-width: 600px) {
+
+    :root {
+        --header-height: 62px;
+    }
+
+    .app-header {
+        height: var(--header-height);
+
+        padding: 0 12px;
+    }
+
+    .store-logo {
+        width: 36px;
+        height: 36px;
+
+        font-size: 18px;
+    }
+
+    #storeName {
+        font-size: 17px;
+    }
+
+    #currentDate {
+        font-size: 10px;
+    }
+
+    .connection-status {
+        font-size: 10px;
+    }
+
+
+    .cashier-layout {
+        padding: 10px;
+
+        gap: 10px;
+    }
+
+
+    .order-section,
+    .menu-section {
+        min-height: 450px;
+    }
+
+
+    .section-header {
+        padding: 12px;
+    }
+
+
+    .section-header h2 {
+        font-size: 15px;
+    }
+
+
+    .section-header p {
+        font-size: 10px;
+    }
+
+
+    .button {
+        min-height: 36px;
+
+        padding: 8px 10px;
+
+        font-size: 10px;
+    }
+
+
+    .menu-list {
+        grid-template-columns:
+            repeat(2, minmax(120px, 1fr));
+
+        gap: 7px;
+
+        padding: 4px 10px 10px;
+    }
+
+
+    .menu-card {
+        min-height: 105px;
+
+        padding: 10px;
+    }
+
+
+    .menu-card-name {
+        font-size: 12px;
+    }
+
+
+    .menu-card-price {
+        font-size: 12px;
+    }
+
+
+    .cart-list {
+        max-height: 360px;
+
+        padding: 8px;
+    }
+
+
+    .payment-box {
+        padding: 12px;
+    }
+
+
+    .total-row strong {
+        font-size: 20px;
+    }
+
+
+    .payment-field input {
+        height: 44px;
+
+        font-size: 16px;
+    }
+
+
+    .sales-section {
+        width: calc(100% - 20px);
+    }
+
+
+    .sales-header {
+        padding: 12px;
+
+        align-items: flex-start;
+
+        flex-direction: column;
+    }
+
+
+    .sales-summary {
+        width: 100%;
+    }
+
+
+    .sales-stat {
+        flex: 1;
+
+        min-width: 0;
+    }
+
+
+    .sales-actions {
+        padding: 10px;
+
+        flex-direction: column;
+    }
+
+
+    .sales-actions .button {
+        width: 100%;
+    }
+
+
+    .modal {
+        padding: 10px;
+    }
+
+
+    .modal-content {
+        max-height: calc(100vh - 20px);
+    }
+
+
+    .managed-menu-actions {
+        flex-direction: column;
+    }
+
+}
+
+
+/* =========================================================
+   HP SANGAT KECIL
+========================================================= */
+
+@media (max-width: 380px) {
+
+    .menu-list {
+        grid-template-columns: 1fr;
+    }
+
+    .sales-summary {
+        flex-direction: column;
+    }
+
+}
+
+
+/* =========================================================
+   MODE TOUCH SCREEN
+========================================================= */
+
+@media (pointer: coarse) {
+
+    .button {
+        min-height: 44px;
+    }
+
+    .quantity-button {
+        width: 40px;
+        height: 40px;
+    }
+
+    .menu-card {
+        min-height: 125px;
+    }
+
+    .menu-card-add {
+        width: 36px;
+        height: 36px;
+    }
+
+}
+
+
+/* =========================================================
+   AKSESIBILITAS
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition: none !important;
+        animation: none !important;
+    }
+
+}
