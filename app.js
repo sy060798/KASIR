@@ -2,13 +2,22 @@
    KASIR APP.JS
    DATABASE UTAMA: GOOGLE SHEETS
 
-   ALUR:
-   - MENU -> Google Sheets
-   - PENJUALAN -> Google Sheets
-   - STATISTIK -> hasil Google Sheets
-   - DOWNLOAD -> Google Sheets
-   - RESET -> Google Sheets
-   - TIDAK memakai localStorage sebagai database
+   SHEET:
+   - MENU
+   - PENJUALAN
+   - DETAIL_PENJUALAN
+
+   FOKUS PENJUALAN:
+   - getSales      -> membaca SEMUA data PENJUALAN
+   - saveSale      -> menyimpan transaksi
+   - deleteAllSales -> menghapus SEMUA data PENJUALAN
+   - DOWNLOAD     -> mengambil data PENJUALAN
+   - STATISTIK    -> menghitung langsung dari PENJUALAN
+
+   CATATAN:
+   - Tidak memakai localStorage sebagai database.
+   - Tidak filter tanggal di browser.
+   - MENU tidak ikut terhapus saat reset PENJUALAN.
    ========================================================= */
 
 
@@ -30,6 +39,9 @@ const state = {
 
     cart: [],
 
+    /*
+     * Semua transaksi dari sheet PENJUALAN.
+     */
     todaySales: [],
 
     selectedCategory: "all",
@@ -58,7 +70,9 @@ const state = {
    ========================================================= */
 
 function $(id) {
+
     return document.getElementById(id);
+
 }
 
 
@@ -72,7 +86,9 @@ function toSafeString(value) {
         value === null ||
         value === undefined
     ) {
+
         return "";
+
     }
 
     return String(value).trim();
@@ -91,10 +107,14 @@ function toNumber(value) {
         value === undefined ||
         value === ""
     ) {
+
         return 0;
+
     }
 
-    if (typeof value === "number") {
+    if (
+        typeof value === "number"
+    ) {
 
         return Number.isFinite(value)
             ? value
@@ -106,11 +126,12 @@ function toNumber(value) {
         String(value).trim();
 
     if (!text) {
+
         return 0;
+
     }
 
     /*
-     * Format Indonesia:
      * 10.000,50
      */
 
@@ -141,7 +162,7 @@ function toNumber(value) {
 
     /*
      * Hilangkan Rp
-     * dan karakter lainnya.
+     * dan karakter lain.
      */
 
     text =
@@ -231,7 +252,9 @@ function normalizeDateKey(value) {
         value === undefined ||
         value === ""
     ) {
+
         return "";
+
     }
 
     if (
@@ -243,7 +266,9 @@ function normalizeDateKey(value) {
                 value.getTime()
             )
         ) {
+
             return "";
+
         }
 
         return (
@@ -372,7 +397,9 @@ function formatDateIndonesia(value) {
         normalizeDateKey(value);
 
     if (!key) {
+
         return "-";
+
     }
 
     const parts =
@@ -381,7 +408,9 @@ function formatDateIndonesia(value) {
     if (
         parts.length !== 3
     ) {
+
         return "-";
+
     }
 
     return (
@@ -402,7 +431,9 @@ function formatDateIndonesia(value) {
 function formatDateTimeIndonesia(value) {
 
     if (!value) {
+
         return "-";
+
     }
 
     const date =
@@ -442,11 +473,26 @@ function escapeHtml(value) {
     return String(
         value ?? ""
     )
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+        .replaceAll(
+            "&",
+            "&amp;"
+        )
+        .replaceAll(
+            "<",
+            "&lt;"
+        )
+        .replaceAll(
+            ">",
+            "&gt;"
+        )
+        .replaceAll(
+            '"',
+            "&quot;"
+        )
+        .replaceAll(
+            "'",
+            "&#039;"
+        );
 
 }
 
@@ -483,34 +529,52 @@ function generateTransactionNumber() {
 
     const date =
         getTodayKey()
-            .replaceAll("-", "");
+            .replaceAll(
+                "-",
+                ""
+            );
 
     const hour =
         String(
             now.getHours()
-        ).padStart(2, "0");
+        ).padStart(
+            2,
+            "0"
+        );
 
     const minute =
         String(
             now.getMinutes()
-        ).padStart(2, "0");
+        ).padStart(
+            2,
+            "0"
+        );
 
     const second =
         String(
             now.getSeconds()
-        ).padStart(2, "0");
+        ).padStart(
+            2,
+            "0"
+        );
 
     const ms =
         String(
             now.getMilliseconds()
-        ).padStart(3, "0");
+        ).padStart(
+            3,
+            "0"
+        );
 
     const random =
         String(
             Math.floor(
                 Math.random() * 10000
             )
-        ).padStart(4, "0");
+        ).padStart(
+            4,
+            "0"
+        );
 
     return (
         date +
@@ -802,7 +866,9 @@ async function loadMenusFromGoogleSheets() {
     if (
         state.isLoadingMenus
     ) {
+
         return;
+
     }
 
     state.isLoadingMenus =
@@ -939,7 +1005,9 @@ function renderCategories() {
         $("categoryButtons");
 
     if (!container) {
+
         return;
+
     }
 
     container.innerHTML =
@@ -1081,7 +1149,9 @@ function renderMenus() {
         $("emptyMenu");
 
     if (!list) {
+
         return;
+
     }
 
     list.innerHTML =
@@ -1092,8 +1162,10 @@ function renderMenus() {
     ) {
 
         if (empty) {
+
             empty.hidden =
                 false;
+
         }
 
         return;
@@ -1101,8 +1173,10 @@ function renderMenus() {
     }
 
     if (empty) {
+
         empty.hidden =
             true;
+
     }
 
     const menus =
@@ -1202,6 +1276,7 @@ function renderMenus() {
                     </div>
 
                     <div class="menu-card-add">
+
                         ${
                             quantity > 0
                                 ? formatNumber(
@@ -1209,6 +1284,7 @@ function renderMenus() {
                                 )
                                 : "+"
                         }
+
                     </div>
 
                 </div>
@@ -1332,7 +1408,9 @@ function changeCartQuantity(
         );
 
     if (!item) {
+
         return;
+
     }
 
     item.quantity =
@@ -1424,7 +1502,9 @@ function renderCart() {
         $("cartTotal");
 
     if (!list) {
+
         return;
+
     }
 
     list.innerHTML =
@@ -1453,8 +1533,10 @@ function renderCart() {
     ) {
 
         if (empty) {
+
             empty.style.display =
                 "";
+
         }
 
         updatePaymentUI();
@@ -1464,8 +1546,10 @@ function renderCart() {
     }
 
     if (empty) {
+
         empty.style.display =
             "none";
+
     }
 
     state.cart.forEach(
@@ -1711,8 +1795,10 @@ function clearCart() {
         $("paymentAmount");
 
     if (input) {
+
         input.value =
             "";
+
     }
 
     renderCart();
@@ -1876,7 +1962,9 @@ async function processPayment() {
     if (
         state.isSaving
     ) {
+
         return;
+
     }
 
     let sale;
@@ -1919,14 +2007,13 @@ async function processPayment() {
             sale;
 
         /*
-         * Setelah berhasil:
-         * langsung ambil ulang dari Sheets.
+         * Ambil ulang langsung dari PENJUALAN.
          */
 
         await loadTodaySalesFromGoogleSheets();
 
         /*
-         * Baru kosongkan keranjang.
+         * Kosongkan keranjang setelah berhasil.
          */
 
         clearCart();
@@ -1955,8 +2042,8 @@ async function processPayment() {
         );
 
         /*
-         * JANGAN kosongkan keranjang
-         * jika gagal.
+         * Jangan kosongkan keranjang
+         * apabila gagal.
          */
 
         setConnectionStatus(
@@ -1993,7 +2080,9 @@ function extractSalesFromResponse(
 ) {
 
     if (!result) {
+
         return [];
+
     }
 
     if (
@@ -2074,8 +2163,7 @@ function normalizeSales(
             sale => {
 
                 /*
-                 * =================================================
-                 * ARRAY / ROW SHEET
+                 * ARRAY / ROW
                  *
                  * 0 ID_PENJUALAN
                  * 1 NO_TRANSAKSI
@@ -2085,7 +2173,6 @@ function normalizeSales(
                  * 5 PEMBAYARAN
                  * 6 KEMBALIAN
                  * 7 JUMLAH_ITEM
-                 * =================================================
                  */
 
                 if (
@@ -2279,17 +2366,16 @@ function normalizeSales(
 
 
 /* =========================================================
-   LOAD PENJUALAN DARI GOOGLE SHEETS
+   LOAD PENJUALAN
    =========================================================
-
    PENTING:
 
-   Tidak mengirim dateKey.
+   HANYA MEMBACA SHEET PENJUALAN
+   MELALUI ACTION getSales.
 
-   Apps Script menentukan data
-   penjualan yang dikembalikan.
-
-   Frontend hanya memakai response.
+   Tidak mengirim tanggal.
+   Tidak melakukan filter tanggal.
+   Tidak membaca DETAIL_PENJUALAN.
    ========================================================= */
 
 async function loadTodaySalesFromGoogleSheets() {
@@ -2297,7 +2383,9 @@ async function loadTodaySalesFromGoogleSheets() {
     if (
         state.isLoadingSales
     ) {
+
         return;
+
     }
 
     state.isLoadingSales =
@@ -2309,7 +2397,7 @@ async function loadTodaySalesFromGoogleSheets() {
             await googleRequest(
                 {
                     action:
-                        "getTodaySales"
+                        "getSales"
                 },
                 "GET"
             );
@@ -2319,20 +2407,31 @@ async function loadTodaySalesFromGoogleSheets() {
             result
         );
 
-        const rawSales =
-            extractSalesFromResponse(
-                result
+        if (
+            !result ||
+            result.success === false
+        ) {
+
+            throw new Error(
+                result?.message ||
+                "Gagal mengambil data PENJUALAN."
             );
+
+        }
+
+        const rawSales =
+            Array.isArray(
+                result.sales
+            )
+                ? result.sales
+                : extractSalesFromResponse(
+                    result
+                );
 
         state.todaySales =
             normalizeSales(
                 rawSales
             );
-
-        /*
-         * LANGSUNG tampilkan response.
-         * Tidak filter lagi di browser.
-         */
 
         renderSalesHistory();
 
@@ -2348,7 +2447,7 @@ async function loadTodaySalesFromGoogleSheets() {
     catch (error) {
 
         console.error(
-            "Gagal mengambil penjualan:",
+            "Gagal mengambil PENJUALAN:",
             error
         );
 
@@ -2359,12 +2458,12 @@ async function loadTodaySalesFromGoogleSheets() {
 
         setConnectionStatus(
             "offline",
-            "Gagal mengambil penjualan"
+            "Gagal mengambil PENJUALAN"
         );
 
         showNotification(
             error.message ||
-            "Gagal mengambil penjualan dari Google Sheets.",
+            "Gagal mengambil data PENJUALAN.",
             "error"
         );
 
@@ -2384,6 +2483,16 @@ async function loadTodaySalesFromGoogleSheets() {
 
 /* =========================================================
    RENDER STATISTIK PENJUALAN
+   =========================================================
+   SUMBER DATA:
+
+   SHEET PENJUALAN
+
+   TRANSAKSI =
+   jumlah transaksi
+
+   TOTAL PENJUALAN =
+   jumlah semua kolom TOTAL
    ========================================================= */
 
 function renderSalesHistory() {
@@ -2394,12 +2503,6 @@ function renderSalesHistory() {
     const total =
         $("todaySalesTotal");
 
-    const list =
-        $("salesHistory");
-
-    const empty =
-        $("emptySales");
-
     const sales =
         Array.isArray(
             state.todaySales
@@ -2408,20 +2511,23 @@ function renderSalesHistory() {
             : [];
 
     /*
-     * TRANSAKSI
+     * JUMLAH TRANSAKSI
      */
+
+    const transactionCount =
+        sales.length;
 
     if (count) {
 
         count.textContent =
             formatNumber(
-                sales.length
+                transactionCount
             );
 
     }
 
     /*
-     * TOTAL
+     * TOTAL PENJUALAN
      */
 
     const totalPenjualan =
@@ -2429,11 +2535,16 @@ function renderSalesHistory() {
             (
                 sum,
                 sale
-            ) =>
-                sum +
-                toNumber(
-                    sale.total
-                ),
+            ) => {
+
+                return (
+                    sum +
+                    toNumber(
+                        sale.total
+                    )
+                );
+
+            },
             0
         );
 
@@ -2446,32 +2557,13 @@ function renderSalesHistory() {
 
     }
 
-    /*
-     * Riwayat tidak wajib ditampilkan.
-     */
-
-    if (list) {
-
-        list.innerHTML =
-            "";
-
-    }
-
-    if (empty) {
-
-        empty.hidden =
-            true;
-
-        empty.style.display =
-            "none";
-
-    }
-
 }
 
 
 /* =========================================================
    DOWNLOAD PENJUALAN
+   =========================================================
+   MENGAMBIL LANGSUNG DARI SHEET PENJUALAN.
    ========================================================= */
 
 async function downloadTodaySales() {
@@ -2479,19 +2571,15 @@ async function downloadTodaySales() {
     try {
 
         showNotification(
-            "Mengambil data penjualan dari Google Sheets...",
+            "Mengambil data dari sheet PENJUALAN...",
             "success"
         );
-
-        /*
-         * Ambil ulang data TERBARU.
-         */
 
         const result =
             await googleRequest(
                 {
                     action:
-                        "getTodaySales"
+                        "getSales"
                 },
                 "GET"
             );
@@ -2501,14 +2589,25 @@ async function downloadTodaySales() {
             result
         );
 
-        const rawSales =
-            extractSalesFromResponse(
-                result
+        if (
+            !result ||
+            result.success === false
+        ) {
+
+            throw new Error(
+                result?.message ||
+                "Gagal mengambil PENJUALAN."
             );
+
+        }
 
         const sales =
             normalizeSales(
-                rawSales
+                Array.isArray(
+                    result.sales
+                )
+                    ? result.sales
+                    : []
             );
 
         state.todaySales =
@@ -2521,7 +2620,7 @@ async function downloadTodaySales() {
         ) {
 
             showNotification(
-                "Tidak ada data penjualan dari Google Sheets.",
+                "Sheet PENJUALAN masih kosong.",
                 "warning"
             );
 
@@ -2657,7 +2756,7 @@ async function downloadTodaySales() {
     catch (error) {
 
         console.error(
-            "Download:",
+            "DOWNLOAD PENJUALAN:",
             error
         );
 
@@ -2717,11 +2816,6 @@ function openResetModal() {
 
     if (!modal) {
 
-        /*
-         * Kalau HTML tidak mempunyai modal,
-         * tetap jalankan konfirmasi browser.
-         */
-
         resetTodaySales();
 
         return;
@@ -2755,7 +2849,9 @@ function closeResetModal() {
         $("resetModal");
 
     if (!modal) {
+
         return;
+
     }
 
     modal.hidden =
@@ -2772,17 +2868,11 @@ function closeResetModal() {
 /* =========================================================
    RESET SEMUA PENJUALAN
    =========================================================
+   HANYA MENGHAPUS SHEET PENJUALAN.
 
-   TIDAK mengirim dateKey.
+   MENU TIDAK DISENTUH.
 
-   Apps Script menerima:
-
-       action: deleteTodaySales
-
-   dan bertugas menghapus DATA PENJUALAN
-   pada sheet PENJUALAN.
-
-   MENU tidak disentuh.
+   DETAIL_PENJUALAN TIDAK DISENTUH.
    ========================================================= */
 
 async function resetTodaySales() {
@@ -2790,16 +2880,20 @@ async function resetTodaySales() {
     if (
         state.isResetting
     ) {
+
         return;
+
     }
 
     const confirmed =
         window.confirm(
-            "YAKIN? Semua data penjualan pada sheet PENJUALAN akan dihapus. Menu dan harga tidak dihapus."
+            "YAKIN? SEMUA DATA pada sheet PENJUALAN akan dihapus. MENU TIDAK AKAN TERHAPUS."
         );
 
     if (!confirmed) {
+
         return;
+
     }
 
     state.isResetting =
@@ -2811,7 +2905,7 @@ async function resetTodaySales() {
     if (message) {
 
         message.textContent =
-            "Menghapus data penjualan...";
+            "Menghapus data PENJUALAN...";
 
     }
 
@@ -2819,20 +2913,14 @@ async function resetTodaySales() {
 
         setConnectionStatus(
             "loading",
-            "Menghapus data penjualan..."
+            "Menghapus PENJUALAN..."
         );
-
-        /*
-         * HANYA action.
-         *
-         * Tidak ada dateKey.
-         */
 
         const result =
             await googleRequest({
 
                 action:
-                    "deleteTodaySales"
+                    "deleteAllSales"
 
             });
 
@@ -2842,19 +2930,19 @@ async function resetTodaySales() {
         );
 
         if (
-            result &&
+            !result ||
             result.success === false
         ) {
 
             throw new Error(
-                result.message ||
+                result?.message ||
                 "Google Sheets menolak reset."
             );
 
         }
 
         /*
-         * Kosongkan tampilan dulu.
+         * Kosongkan tampilan.
          */
 
         state.todaySales =
@@ -2863,10 +2951,12 @@ async function resetTodaySales() {
         renderSalesHistory();
 
         /*
-         * Ambil ulang dari Sheets.
+         * Baca ulang dari PENJUALAN.
          *
-         * Jika Apps Script memang sudah
-         * menghapus data, hasilnya kosong.
+         * Seharusnya menghasilkan:
+         *
+         * TRANSAKSI = 0
+         * TOTAL = Rp 0
          */
 
         await loadTodaySalesFromGoogleSheets();
@@ -2879,7 +2969,7 @@ async function resetTodaySales() {
         );
 
         showNotification(
-            "Data penjualan berhasil dihapus dari Google Sheets.",
+            "Semua data PENJUALAN berhasil dihapus.",
             "success"
         );
 
@@ -2888,13 +2978,13 @@ async function resetTodaySales() {
     catch (error) {
 
         console.error(
-            "RESET ERROR:",
+            "RESET PENJUALAN:",
             error
         );
 
         setConnectionStatus(
             "offline",
-            "Reset penjualan gagal"
+            "Reset PENJUALAN gagal"
         );
 
         if (message) {
@@ -2907,7 +2997,7 @@ async function resetTodaySales() {
 
         showNotification(
             error.message ||
-            "Gagal menghapus data penjualan.",
+            "Gagal menghapus data PENJUALAN.",
             "error"
         );
 
@@ -2933,7 +3023,9 @@ function openMenuModal() {
         $("menuModal");
 
     if (!modal) {
+
         return;
+
     }
 
     modal.hidden =
@@ -2957,7 +3049,9 @@ function closeMenuModal() {
         $("menuModal");
 
     if (!modal) {
+
         return;
+
     }
 
     modal.hidden =
@@ -2982,17 +3076,24 @@ function resetMenuForm() {
         $("menuForm");
 
     if (form) {
+
         form.reset();
+
     }
 
     if ($("menuId")) {
+
         $("menuId").value =
             "";
+
     }
 
     if ($("menuFormMessage")) {
-        $("menuFormMessage").textContent =
-            "";
+
+        $("menuFormMessage")
+            .textContent =
+                "";
+
     }
 
     if ($("menuModalTitle")) {
@@ -3020,30 +3121,40 @@ function editMenu(menuId) {
         );
 
     if (!menu) {
+
         return;
+
     }
 
     state.editingMenuId =
         menuId;
 
     if ($("menuId")) {
+
         $("menuId").value =
             menu.id;
+
     }
 
     if ($("menuName")) {
+
         $("menuName").value =
             menu.name;
+
     }
 
     if ($("menuCategory")) {
+
         $("menuCategory").value =
             menu.category || "";
+
     }
 
     if ($("menuPrice")) {
+
         $("menuPrice").value =
             menu.price;
+
     }
 
     if ($("menuModalTitle")) {
@@ -3068,7 +3179,9 @@ async function saveMenu(event) {
     if (
         state.isSaving
     ) {
+
         return;
+
     }
 
     const name =
@@ -3210,7 +3323,9 @@ async function deleteMenu(menuId) {
         );
 
     if (!menu) {
+
         return;
+
     }
 
     const confirmed =
@@ -3219,7 +3334,9 @@ async function deleteMenu(menuId) {
         );
 
     if (!confirmed) {
+
         return;
+
     }
 
     state.isSaving =
@@ -3291,7 +3408,9 @@ function renderManagedMenus() {
         $("emptyManagedMenu");
 
     if (!list) {
+
         return;
+
     }
 
     list.innerHTML =
@@ -3302,8 +3421,10 @@ function renderManagedMenus() {
     ) {
 
         if (empty) {
+
             empty.style.display =
                 "";
+
         }
 
         return;
@@ -3311,8 +3432,10 @@ function renderManagedMenus() {
     }
 
     if (empty) {
+
         empty.style.display =
             "none";
+
     }
 
     state.menus.forEach(
@@ -3337,9 +3460,11 @@ function renderManagedMenus() {
                     </div>
 
                     <div class="managed-menu-price">
+
                         ${formatRupiah(
                             menu.price
                         )}
+
                         ${
                             menu.category
                                 ? " • " +
@@ -3348,6 +3473,7 @@ function renderManagedMenus() {
                                   )
                                 : ""
                         }
+
                     </div>
 
                 </div>
@@ -3435,7 +3561,9 @@ function openPaymentSuccessModal(
 ) {
 
     if (!sale) {
+
         return;
+
     }
 
     if (
@@ -3488,7 +3616,9 @@ function openPaymentSuccessModal(
         $("paymentSuccessModal");
 
     if (!modal) {
+
         return;
+
     }
 
     modal.hidden =
@@ -3508,7 +3638,9 @@ function closePaymentSuccessModal() {
         $("paymentSuccessModal");
 
     if (!modal) {
+
         return;
+
     }
 
     modal.hidden =
@@ -3529,7 +3661,9 @@ function closePaymentSuccessModal() {
 function printReceipt(sale) {
 
     if (!sale) {
+
         return;
+
     }
 
     const printArea =
@@ -3615,13 +3749,17 @@ function printReceipt(sale) {
                             <div class="receipt-item-detail">
 
                                 <span>
+
                                     ${formatNumber(
                                         item.quantity
                                     )}
+
                                     ×
+
                                     ${formatRupiah(
                                         item.price
                                     )}
+
                                 </span>
 
                                 <strong>
@@ -3713,7 +3851,9 @@ function initializeSearch() {
         $("menuSearch");
 
     if (!input) {
+
         return;
+
     }
 
     input.addEventListener(
@@ -3742,7 +3882,9 @@ function initializePaymentInput() {
         $("paymentAmount");
 
     if (!input) {
+
         return;
+
     }
 
     input.addEventListener(
@@ -3851,7 +3993,9 @@ function initializeEvents() {
                 if (
                     state.cart.length === 0
                 ) {
+
                     return;
+
                 }
 
                 if (
@@ -3953,7 +4097,9 @@ function initializeEvents() {
                 event.key !==
                 "Escape"
             ) {
+
                 return;
+
             }
 
             const menuModal =
@@ -4052,8 +4198,14 @@ function renderCurrentDate() {
 
 async function refreshAllData() {
 
+    /*
+     * MENU
+     */
     await loadMenusFromGoogleSheets();
 
+    /*
+     * PENJUALAN
+     */
     await loadTodaySalesFromGoogleSheets();
 
 }
@@ -4072,7 +4224,9 @@ function initializeAutoRefresh() {
                 state.isSaving ||
                 state.isResetting
             ) {
+
                 return;
+
             }
 
             await loadTodaySalesFromGoogleSheets();
@@ -4093,7 +4247,9 @@ async function initializeApp() {
     if (
         state.initialized
     ) {
+
         return;
+
     }
 
     state.initialized =
@@ -4119,7 +4275,9 @@ async function initializeApp() {
         await checkGoogleSheetsConnection();
 
     if (!connected) {
+
         return;
+
     }
 
     await refreshAllData();
