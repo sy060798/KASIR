@@ -1,0 +1,659 @@
+/* ============================================================
+   PRINT CSS - KASIR
+   Untuk:
+   - Printer thermal
+   - Print melalui browser
+   - Print struk saja
+   ============================================================ */
+
+
+/* ============================================================
+   DEFAULT
+============================================================ */
+
+@page {
+  size: 80mm auto;
+  margin: 0;
+}
+
+
+/* ============================================================
+   PRINT MODE
+============================================================ */
+
+@media print {
+
+  html,
+  body {
+    width: 80mm;
+    margin: 0;
+    padding: 0;
+    background: #ffffff !important;
+  }
+
+
+  body {
+    font-family:
+      Arial,
+      Helvetica,
+      sans-serif;
+
+    color: #000000 !important;
+
+    font-size: 11px;
+
+    line-height: 1.3;
+
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+
+  /*
+   * Sembunyikan seluruh tampilan aplikasi
+   */
+
+  body * {
+    visibility: hidden !important;
+  }
+
+
+  /*
+   * Hanya struk yang ditampilkan
+   */
+
+  #printReceipt,
+  #printReceipt * {
+    visibility: visible !important;
+  }
+
+
+  #printReceipt {
+
+    display: block !important;
+
+    position: absolute;
+
+    left: 0;
+
+    top: 0;
+
+    width: 80mm;
+
+    margin: 0;
+
+    padding: 4mm 3mm;
+
+    box-sizing: border-box;
+
+    background: #ffffff !important;
+
+    color: #000000 !important;
+  }
+
+
+  /* ==========================================================
+     HEADER STRUK
+  ========================================================== */
+
+  .receipt-header {
+    width: 100%;
+
+    text-align: center;
+
+    margin-bottom: 3mm;
+  }
+
+
+  .receipt-store-name {
+    font-size: 18px;
+
+    font-weight: 800;
+
+    line-height: 1.15;
+
+    margin: 0 0 1mm 0;
+  }
+
+
+  .receipt-store-address {
+    font-size: 10px;
+
+    line-height: 1.25;
+
+    margin: 0;
+
+    white-space: pre-line;
+  }
+
+
+  .receipt-store-phone {
+    font-size: 10px;
+
+    margin-top: 1mm;
+  }
+
+
+  /* ==========================================================
+     GARIS PEMISAH
+  ========================================================== */
+
+  .receipt-line {
+
+    width: 100%;
+
+    border-top: 1px dashed #000;
+
+    margin: 2.5mm 0;
+  }
+
+
+  .receipt-line-solid {
+
+    width: 100%;
+
+    border-top: 1px solid #000;
+
+    margin: 2.5mm 0;
+  }
+
+
+  /* ==========================================================
+     INFO TRANSAKSI
+  ========================================================== */
+
+  .receipt-info {
+
+    width: 100%;
+
+    font-size: 10px;
+
+    margin-bottom: 2mm;
+  }
+
+
+  .receipt-info-row {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    width: 100%;
+
+    margin-bottom: 0.8mm;
+  }
+
+
+  .receipt-info-label {
+
+    text-align: left;
+
+    white-space: nowrap;
+  }
+
+
+  .receipt-info-value {
+
+    text-align: right;
+
+    margin-left: 3mm;
+
+    word-break: break-word;
+  }
+
+
+  /* ==========================================================
+     DAFTAR ITEM
+  ========================================================== */
+
+  .receipt-items {
+
+    width: 100%;
+
+    margin: 0;
+
+    padding: 0;
+  }
+
+
+  .receipt-item {
+
+    width: 100%;
+
+    margin-bottom: 2.5mm;
+
+    page-break-inside: avoid;
+  }
+
+
+  .receipt-item-name {
+
+    font-size: 11px;
+
+    font-weight: 700;
+
+    line-height: 1.2;
+
+    word-break: break-word;
+
+    margin-bottom: 0.7mm;
+  }
+
+
+  .receipt-item-detail {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: flex-start;
+
+    width: 100%;
+
+    font-size: 10px;
+  }
+
+
+  .receipt-item-qty-price {
+
+    text-align: left;
+
+    padding-right: 2mm;
+
+    flex: 1;
+  }
+
+
+  .receipt-item-subtotal {
+
+    text-align: right;
+
+    white-space: nowrap;
+
+    font-weight: 700;
+  }
+
+
+  /* ==========================================================
+     TABEL ITEM
+     Dipakai jika HTML menggunakan table
+  ========================================================== */
+
+  .receipt-table {
+
+    width: 100%;
+
+    border-collapse: collapse;
+
+    table-layout: fixed;
+
+    font-size: 10px;
+  }
+
+
+  .receipt-table th {
+
+    font-weight: 700;
+
+    border-bottom: 1px solid #000;
+
+    padding: 1mm 0;
+
+    text-align: left;
+  }
+
+
+  .receipt-table td {
+
+    padding: 1.2mm 0;
+
+    vertical-align: top;
+
+    word-break: break-word;
+  }
+
+
+  .receipt-table .col-name {
+
+    width: 43%;
+
+    text-align: left;
+  }
+
+
+  .receipt-table .col-qty {
+
+    width: 12%;
+
+    text-align: center;
+  }
+
+
+  .receipt-table .col-price {
+
+    width: 22%;
+
+    text-align: right;
+  }
+
+
+  .receipt-table .col-total {
+
+    width: 23%;
+
+    text-align: right;
+  }
+
+
+  /* ==========================================================
+     TOTAL
+  ========================================================== */
+
+  .receipt-total-section {
+
+    width: 100%;
+
+    margin-top: 2mm;
+  }
+
+
+  .receipt-total-row {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    width: 100%;
+
+    font-size: 11px;
+
+    margin-bottom: 1.2mm;
+  }
+
+
+  .receipt-total-label {
+
+    text-align: left;
+
+    font-weight: 600;
+  }
+
+
+  .receipt-total-value {
+
+    text-align: right;
+
+    font-weight: 700;
+
+    white-space: nowrap;
+  }
+
+
+  .receipt-grand-total {
+
+    font-size: 14px;
+
+    font-weight: 800;
+
+    margin-top: 2mm;
+
+    padding-top: 2mm;
+
+    border-top: 1px solid #000;
+  }
+
+
+  .receipt-payment {
+
+    margin-top: 1.5mm;
+  }
+
+
+  .receipt-change {
+
+    font-size: 12px;
+
+    font-weight: 800;
+  }
+
+
+  /* ==========================================================
+     FOOTER
+  ========================================================== */
+
+  .receipt-footer {
+
+    width: 100%;
+
+    text-align: center;
+
+    margin-top: 5mm;
+
+    font-size: 10px;
+
+    line-height: 1.35;
+  }
+
+
+  .receipt-footer-title {
+
+    font-size: 11px;
+
+    font-weight: 700;
+
+    margin-bottom: 1mm;
+  }
+
+
+  .receipt-footer-message {
+
+    white-space: pre-line;
+
+    word-break: break-word;
+  }
+
+
+  /* ==========================================================
+     CATATAN
+  ========================================================== */
+
+  .receipt-note {
+
+    width: 100%;
+
+    margin-top: 3mm;
+
+    font-size: 9px;
+
+    text-align: center;
+
+    white-space: pre-line;
+
+    word-break: break-word;
+  }
+
+
+  /* ==========================================================
+     UTILITY
+  ========================================================== */
+
+  .print-hidden {
+
+    display: none !important;
+  }
+
+
+  .print-only {
+
+    display: block !important;
+  }
+
+
+  .text-center {
+
+    text-align: center !important;
+  }
+
+
+  .text-left {
+
+    text-align: left !important;
+  }
+
+
+  .text-right {
+
+    text-align: right !important;
+  }
+
+
+  .bold {
+
+    font-weight: 700 !important;
+  }
+
+
+  .strong {
+
+    font-weight: 800 !important;
+  }
+
+
+  .no-margin {
+
+    margin: 0 !important;
+  }
+
+
+  .no-padding {
+
+    padding: 0 !important;
+  }
+
+
+  /* ==========================================================
+     MENCEGAH PEMOTONGAN STRUK
+  ========================================================== */
+
+  .receipt-header,
+  .receipt-info,
+  .receipt-items,
+  .receipt-total-section,
+  .receipt-footer {
+
+    page-break-inside: avoid;
+  }
+
+
+  .receipt-item {
+
+    page-break-inside: avoid;
+  }
+
+
+  /* ==========================================================
+     HILANGKAN ELEMEN BROWSER YANG TIDAK PERLU
+  ========================================================== */
+
+  button,
+  input,
+  select,
+  textarea {
+
+    display: none !important;
+  }
+
+
+  /* ==========================================================
+     LINK
+  ========================================================== */
+
+  a {
+
+    color: #000000 !important;
+
+    text-decoration: none !important;
+  }
+
+
+  /* ==========================================================
+     SCROLLBAR
+  ========================================================== */
+
+  ::-webkit-scrollbar {
+
+    display: none !important;
+  }
+
+}
+
+
+/* ============================================================
+   SCREEN
+   ------------------------------------------------------------
+   #printReceipt tetap tersembunyi ketika aplikasi digunakan.
+============================================================ */
+
+#printReceipt {
+
+  display: none;
+}
+
+
+/* ============================================================
+   SCREEN PREVIEW
+   ------------------------------------------------------------
+   Kalau nanti app.js memberikan class .receipt-preview,
+   bagian ini bisa digunakan untuk preview struk.
+============================================================ */
+
+.receipt-preview {
+
+  width: 80mm;
+
+  max-width: 80mm;
+
+  margin: 20px auto;
+
+  padding: 4mm 3mm;
+
+  box-sizing: border-box;
+
+  background: #ffffff;
+
+  color: #000000;
+
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif;
+
+  font-size: 11px;
+
+  line-height: 1.3;
+
+  box-shadow:
+    0 2px 15px
+    rgba(0, 0, 0, 0.15);
+}
+
+
+/* ============================================================
+   RESPONSIVE PREVIEW
+============================================================ */
+
+@media screen and (max-width: 500px) {
+
+  .receipt-preview {
+
+    width: 100%;
+
+    max-width: 80mm;
+
+    margin: 10px auto;
+
+  }
+
+}
