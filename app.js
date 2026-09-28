@@ -34,7 +34,7 @@
 ========================================================= */
 
 const GOOGLE_SCRIPT_URL =
-    "https://script.google.com/macros/s/AKfycbwBPxsQ6v0co6-D-tQ-6-Kn4tCsJkrrwEGC22lasI94ASuQvCB_xp-gR7tEoFFD8nTbQw/exec";
+    "https://script.google.com/macros/s/AKfycbzayanvm5sak3mvjcf_ikudaESu40WgH6Ck4mWzXeqHAinjy8CUXr8pQkudICfdUPugMQ/exec";
 
 
 /* =========================================================
