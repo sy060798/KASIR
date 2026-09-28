@@ -1,6 +1,6 @@
 /* =========================================================
    KASIR - APP.JS
-   Data tersimpan di Google Sheet melalui Google Apps Script
+   Google Apps Script API
    ========================================================= */
 
 const API_URL =
@@ -11,22 +11,20 @@ const API_URL =
    STATE
    ========================================================= */
 
-let menus = [];
-let sales = [];
-let cart = [];
-
-let currentSalesFilter = "all";
-let editingMenuId = null;
-let currentReceipt = null;
+const state = {
+  menus: [],
+  sales: [],
+  cart: [],
+  currentSale: null,
+  salesFilter: "all"
+};
 
 
 /* =========================================================
-   DOM HELPER
+   HELPER DOM
    ========================================================= */
 
-function $(id) {
-  return document.getElementById(id);
-}
+const $ = (id) => document.getElementById(id);
 
 
 /* =========================================================
@@ -45,7 +43,21 @@ function formatRupiah(value) {
 
 
 /* =========================================================
-   DATE HELPER
+   ESCAPE HTML
+   ========================================================= */
+
+function escapeHTML(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+
+/* =========================================================
+   DATE
    ========================================================= */
 
 function getToday() {
@@ -59,125 +71,106 @@ function getToday() {
 }
 
 
-function normalizeDate(value) {
-  if (!value) return "";
-
-  if (typeof value === "string") {
-    if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
-      return value.substring(0, 10);
-    }
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return String(value).substring(0, 10);
-  }
-
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
-
-
 /* =========================================================
    API REQUEST
    ========================================================= */
 
 async function apiRequest(action, data = {}) {
+
   try {
-    showLoading(true);
+
+    const payload = {
+      action,
+      ...data
+    };
+
+    console.log("API REQUEST:", payload);
 
     const response = await fetch(API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "text/plain;charset=utf-8"
       },
-      body: JSON.stringify({
-        action,
-        ...data
-      })
+      body: JSON.stringify(payload),
+      redirect: "follow"
     });
 
     const text = await response.text();
+
+    console.log("API RESPONSE:", text);
+
+    if (!response.ok) {
+      throw new Error(
+        `HTTP ${response.status}: ${response.statusText}`
+      );
+    }
 
     let result;
 
     try {
       result = JSON.parse(text);
     } catch (error) {
+      console.error(
+        "Respons Google Apps Script bukan JSON:",
+        text
+      );
+
       throw new Error(
         "Respons Google Apps Script bukan JSON."
       );
     }
 
-    if (!result.success) {
+    if (
+      result &&
+      result.success === false
+    ) {
       throw new Error(
-        result.message || "Terjadi kesalahan pada server."
+        result.message ||
+        result.error ||
+        "Terjadi kesalahan pada server."
       );
     }
 
     return result;
 
   } catch (error) {
+
     console.error("API ERROR:", error);
 
-    showToast(
-      error.message || "Gagal terhubung ke Google Sheet.",
-      "error"
-    );
-
     throw error;
-
-  } finally {
-    showLoading(false);
   }
 }
 
 
 /* =========================================================
-   CONNECTION STATUS
+   CONNECTION
    ========================================================= */
 
-function setConnectionStatus(connected, text) {
-  const dot = $("connectionDot");
-  const connectionText = $("connectionText");
-
-  if (!dot || !connectionText) return;
-
-  dot.classList.remove(
-    "connected",
-    "disconnected"
-  );
-
-  if (connected) {
-    dot.classList.add("connected");
-    connectionText.textContent =
-      text || "Terhubung";
-  } else {
-    dot.classList.add("disconnected");
-    connectionText.textContent =
-      text || "Tidak terhubung";
-  }
-}
-
-
 async function checkConnection() {
+
+  const dot = $("connectionDot");
+  const text = $("connectionText");
+
+  if (!dot || !text) {
+    return;
+  }
+
+  text.textContent = "Memeriksa koneksi...";
+  dot.classList.remove("online");
+  dot.classList.remove("offline");
+
   try {
+
     await apiRequest("ping");
 
-    setConnectionStatus(
-      true,
-      "Terhubung ke Google Sheet"
-    );
+    dot.classList.add("online");
+    text.textContent = "Terhubung";
 
   } catch (error) {
-    setConnectionStatus(
-      false,
-      "Tidak terhubung"
-    );
+
+    dot.classList.add("offline");
+    text.textContent = "Tidak terhubung";
+
   }
 }
 
@@ -186,16 +179,25 @@ async function checkConnection() {
    LOADING
    ========================================================= */
 
-function showLoading(show) {
+function showLoading() {
+
   const loading = $("loading");
 
   if (!loading) return;
 
-  loading.classList.toggle("show", show);
-  loading.setAttribute(
-    "aria-hidden",
-    show ? "false" : "true"
-  );
+  loading.classList.add("show");
+  loading.setAttribute("aria-hidden", "false");
+}
+
+
+function hideLoading() {
+
+  const loading = $("loading");
+
+  if (!loading) return;
+
+  loading.classList.remove("show");
+  loading.setAttribute("aria-hidden", "true");
 }
 
 
@@ -206,21 +208,24 @@ function showLoading(show) {
 let toastTimer = null;
 
 function showToast(message, type = "success") {
+
   const toast = $("toast");
 
   if (!toast) return;
 
-  clearTimeout(toastTimer);
-
   toast.textContent = message;
 
-  toast.className = "toast";
+  toast.classList.remove(
+    "show",
+    "success",
+    "error",
+    "warning"
+  );
 
-  if (type) {
-    toast.classList.add(type);
-  }
-
+  toast.classList.add(type);
   toast.classList.add("show");
+
+  clearTimeout(toastTimer);
 
   toastTimer = setTimeout(() => {
     toast.classList.remove("show");
@@ -232,213 +237,356 @@ function showToast(message, type = "success") {
    NAVIGATION
    ========================================================= */
 
-function setupNavigation() {
-  const buttons = document.querySelectorAll(".nav-btn");
-  const pages = document.querySelectorAll(".page");
+function initNavigation() {
 
-  buttons.forEach(button => {
+  const buttons = document.querySelectorAll(
+    ".nav-btn"
+  );
+
+  buttons.forEach((button) => {
+
     button.addEventListener("click", () => {
-      const pageName = button.dataset.page;
 
-      buttons.forEach(btn => {
-        btn.classList.remove("active");
-      });
+      const pageName =
+        button.dataset.page;
 
-      button.classList.add("active");
+      switchPage(pageName);
 
-      pages.forEach(page => {
-        page.classList.remove("active");
-      });
-
-      const targetPage =
-        $(`page-${pageName}`);
-
-      if (targetPage) {
-        targetPage.classList.add("active");
-      }
-
-      if (pageName === "penjualan") {
-        loadSales();
-      }
-
-      if (pageName === "menu") {
-        renderMenuTable();
-      }
-
-      if (pageName === "kasir") {
-        renderMenus();
-      }
     });
+
   });
 }
 
 
+function switchPage(pageName) {
+
+  document.querySelectorAll(".nav-btn")
+    .forEach((button) => {
+
+      button.classList.toggle(
+        "active",
+        button.dataset.page === pageName
+      );
+
+    });
+
+
+  document.querySelectorAll(".page")
+    .forEach((page) => {
+
+      page.classList.toggle(
+        "active",
+        page.id === `page-${pageName}`
+      );
+
+    });
+
+
+  if (pageName === "penjualan") {
+    loadSales();
+  }
+
+  if (pageName === "menu") {
+    renderMenuTable();
+  }
+
+}
+
+
 /* =========================================================
-   LOAD DATA
+   LOAD ALL DATA
    ========================================================= */
 
 async function loadAllData() {
+
+  showLoading();
+
   try {
+
     await Promise.all([
       loadMenus(),
       loadSales()
     ]);
 
-    setConnectionStatus(
-      true,
-      "Terhubung ke Google Sheet"
-    );
+    renderCart();
+    updateStatistics();
 
   } catch (error) {
-    setConnectionStatus(
-      false,
-      "Tidak terhubung"
+
+    console.error(error);
+
+    showToast(
+      error.message ||
+      "Gagal mengambil data.",
+      "error"
     );
+
+  } finally {
+
+    hideLoading();
+
   }
 }
 
 
 /* =========================================================
-   LOAD MENUS
+   MENUS
    ========================================================= */
 
 async function loadMenus() {
-  const result = await apiRequest("getMenus");
 
-  menus = Array.isArray(result.data)
-    ? result.data
-    : [];
+  const result =
+    await apiRequest("getMenus");
 
-  menus = menus.map(menu => ({
-    id:
-      menu.id ??
-      menu.ID ??
-      menu.menuId ??
-      "",
-    name:
-      menu.name ??
-      menu.nama ??
-      menu.Nama ??
-      "",
-    category:
-      menu.category ??
-      menu.kategori ??
-      menu.Kategori ??
-      "",
-    price:
-      Number(
-        menu.price ??
-        menu.harga ??
-        menu.Harga ??
-        0
-      )
-  }));
+  state.menus =
+    normalizeArray(
+      result.menus ??
+      result.data ??
+      result.rows ??
+      []
+    );
 
-  populateCategories();
   renderMenus();
   renderMenuTable();
+  renderCategoryFilter();
 }
 
 
 /* =========================================================
-   LOAD SALES
+   NORMALIZE ARRAY
    ========================================================= */
 
-async function loadSales() {
-  const result = await apiRequest("getSales");
+function normalizeArray(data) {
 
-  sales = Array.isArray(result.data)
-    ? result.data
-    : [];
+  if (Array.isArray(data)) {
+    return data;
+  }
 
-  sales = sales.map(sale => ({
-    id:
-      sale.id ??
-      sale.ID ??
-      sale.saleId ??
-      "",
+  if (
+    data &&
+    typeof data === "object"
+  ) {
 
-    transactionId:
-      sale.transactionId ??
-      sale.noTransaksi ??
-      sale.no_transaksi ??
-      sale.NoTransaksi ??
-      "",
+    if (Array.isArray(data.data)) {
+      return data.data;
+    }
 
-    date:
-      normalizeDate(
-        sale.date ??
-        sale.tanggal ??
-        sale.Tanggal ??
-        ""
-      ),
+    if (Array.isArray(data.rows)) {
+      return data.rows;
+    }
 
-    items:
-      sale.items ??
-      sale.item ??
-      sale.Item ??
-      "",
+    return Object.values(data);
+  }
 
-    total:
-      Number(
-        sale.total ??
-        sale.Total ??
-        0
-      ),
+  return [];
+}
 
-    payment:
-      Number(
-        sale.payment ??
-        sale.pembayaran ??
-        sale.Pembayaran ??
-        0
-      ),
 
-    change:
-      Number(
-        sale.change ??
-        sale.kembalian ??
-        sale.Kembalian ??
-        0
-      ),
+/* =========================================================
+   MENU VALUE HELPER
+   ========================================================= */
 
-    createdAt:
-      sale.createdAt ??
-      sale.waktu ??
-      sale.timestamp ??
+function getMenuId(menu) {
+
+  return (
+    menu.id ??
+    menu.ID ??
+    menu.menuId ??
+    menu.menu_id ??
+    ""
+  );
+}
+
+
+function getMenuName(menu) {
+
+  return (
+    menu.name ??
+    menu.nama ??
+    menu.Nama ??
+    menu.menuName ??
+    ""
+  );
+}
+
+
+function getMenuCategory(menu) {
+
+  return (
+    menu.category ??
+    menu.kategori ??
+    menu.Kategori ??
+    ""
+  );
+}
+
+
+function getMenuPrice(menu) {
+
+  return Number(
+    menu.price ??
+    menu.harga ??
+    menu.Harga ??
+    0
+  );
+}
+
+
+/* =========================================================
+   RENDER MENU
+   ========================================================= */
+
+function renderMenus() {
+
+  const grid = $("menuGrid");
+
+  if (!grid) return;
+
+  const search =
+    (
+      $("menuSearch")?.value ||
       ""
-  }));
+    )
+      .toLowerCase()
+      .trim();
 
-  renderSales();
+  const category =
+    $("categoryFilter")?.value ||
+    "";
+
+
+  const filtered =
+    state.menus.filter((menu) => {
+
+      const name =
+        getMenuName(menu)
+          .toLowerCase();
+
+      const menuCategory =
+        getMenuCategory(menu);
+
+      const matchSearch =
+        !search ||
+        name.includes(search);
+
+      const matchCategory =
+        !category ||
+        menuCategory === category;
+
+      return (
+        matchSearch &&
+        matchCategory
+      );
+
+    });
+
+
+  if (!filtered.length) {
+
+    grid.innerHTML = `
+      <div class="empty-state">
+        Tidak ada menu.
+      </div>
+    `;
+
+    return;
+  }
+
+
+  grid.innerHTML =
+    filtered.map((menu) => {
+
+      const id =
+        getMenuId(menu);
+
+      const name =
+        getMenuName(menu);
+
+      const category =
+        getMenuCategory(menu);
+
+      const price =
+        getMenuPrice(menu);
+
+
+      return `
+        <button
+          type="button"
+          class="menu-card"
+          data-menu-id="${escapeHTML(id)}"
+        >
+
+          <div class="menu-card-name">
+            ${escapeHTML(name)}
+          </div>
+
+          <div class="menu-card-category">
+            ${escapeHTML(category || "Umum")}
+          </div>
+
+          <div class="menu-card-price">
+            ${formatRupiah(price)}
+          </div>
+
+        </button>
+      `;
+
+    }).join("");
+
+
+  grid
+    .querySelectorAll(".menu-card")
+    .forEach((button) => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          addToCart(
+            button.dataset.menuId
+          );
+
+        }
+      );
+
+    });
+
 }
 
 
 /* =========================================================
-   CATEGORY
+   CATEGORY FILTER
    ========================================================= */
 
-function populateCategories() {
-  const select = $("categoryFilter");
+function renderCategoryFilter() {
+
+  const select =
+    $("categoryFilter");
 
   if (!select) return;
 
-  const currentValue = select.value;
+  const current =
+    select.value;
 
-  const categories = [
-    ...new Set(
-      menus
-        .map(menu => String(menu.category || "").trim())
+
+  const categories =
+    [...new Set(
+      state.menus
+        .map(getMenuCategory)
         .filter(Boolean)
-    )
-  ].sort((a, b) =>
-    a.localeCompare(b, "id")
-  );
+    )]
+      .sort();
+
 
   select.innerHTML = `
-    <option value="">Semua kategori</option>
+    <option value="">
+      Semua kategori
+    </option>
   `;
 
-  categories.forEach(category => {
+
+  categories.forEach((category) => {
+
     const option =
       document.createElement("option");
 
@@ -446,100 +594,70 @@ function populateCategories() {
     option.textContent = category;
 
     select.appendChild(option);
+
   });
+
 
   if (
-    categories.includes(currentValue)
+    categories.includes(current)
   ) {
-    select.value = currentValue;
+    select.value = current;
   }
+
 }
 
 
 /* =========================================================
-   RENDER MENU KASIR
+   SEARCH MENU
    ========================================================= */
 
-function renderMenus() {
-  const grid = $("menuGrid");
+function initMenuSearch() {
 
-  if (!grid) return;
-
-  const search =
-    ($("menuSearch")?.value || "")
-      .trim()
-      .toLowerCase();
-
-  const category =
-    $("categoryFilter")?.value || "";
-
-  const filteredMenus = menus.filter(menu => {
-    const matchSearch =
-      !search ||
-      String(menu.name)
-        .toLowerCase()
-        .includes(search);
-
-    const matchCategory =
-      !category ||
-      menu.category === category;
-
-    return matchSearch && matchCategory;
-  });
-
-  grid.innerHTML = "";
-
-  if (!filteredMenus.length) {
-    grid.innerHTML = `
-      <div class="empty-state">
-        Menu tidak ditemukan.
-      </div>
-    `;
-
-    return;
-  }
-
-  filteredMenus.forEach(menu => {
-    const card =
-      document.createElement("button");
-
-    card.type = "button";
-    card.className = "menu-card";
-
-    card.innerHTML = `
-      <div class="menu-card-name">
-        ${escapeHtml(menu.name)}
-      </div>
-
-      <div class="menu-card-category">
-        ${escapeHtml(menu.category || "Umum")}
-      </div>
-
-      <div class="menu-card-price">
-        ${formatRupiah(menu.price)}
-      </div>
-    `;
-
-    card.addEventListener("click", () => {
-      addToCart(menu);
-    });
-
-    grid.appendChild(card);
-  });
-}
+  $("menuSearch")
+    ?.addEventListener(
+      "input",
+      renderMenus
+    );
 
 
-/* =========================================================
-   ESCAPE HTML
-   ========================================================= */
+  $("categoryFilter")
+    ?.addEventListener(
+      "change",
+      renderMenus
+    );
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+
+  $("refreshMenusBtn")
+    ?.addEventListener(
+      "click",
+      async () => {
+
+        showLoading();
+
+        try {
+
+          await loadMenus();
+
+          showToast(
+            "Menu berhasil diperbarui."
+          );
+
+        } catch (error) {
+
+          showToast(
+            error.message,
+            "error"
+          );
+
+        } finally {
+
+          hideLoading();
+
+        }
+
+      }
+    );
+
 }
 
 
@@ -547,81 +665,101 @@ function escapeHtml(value) {
    CART
    ========================================================= */
 
-function addToCart(menu) {
-  const existing =
-    cart.find(item =>
-      String(item.id) === String(menu.id)
+function addToCart(menuId) {
+
+  const menu =
+    state.menus.find(
+      (item) =>
+        String(getMenuId(item)) ===
+        String(menuId)
     );
 
-  if (existing) {
-    existing.qty += 1;
-  } else {
-    cart.push({
-      id: menu.id,
-      name: menu.name,
-      category: menu.category,
-      price: Number(menu.price) || 0,
-      qty: 1
-    });
-  }
 
-  renderCart();
-}
-
-
-function removeFromCart(id) {
-  cart = cart.filter(item =>
-    String(item.id) !== String(id)
-  );
-
-  renderCart();
-}
-
-
-function decreaseCartItem(id) {
-  const item =
-    cart.find(item =>
-      String(item.id) === String(id)
+  if (!menu) {
+    showToast(
+      "Menu tidak ditemukan.",
+      "error"
     );
 
-  if (!item) return;
-
-  item.qty -= 1;
-
-  if (item.qty <= 0) {
-    removeFromCart(id);
     return;
   }
 
+
+  const existing =
+    state.cart.find(
+      (item) =>
+        String(item.id) ===
+        String(menuId)
+    );
+
+
+  if (existing) {
+
+    existing.qty += 1;
+
+  } else {
+
+    state.cart.push({
+      id: getMenuId(menu),
+      name: getMenuName(menu),
+      category: getMenuCategory(menu),
+      price: getMenuPrice(menu),
+      qty: 1
+    });
+
+  }
+
+
   renderCart();
 }
 
 
-function increaseCartItem(id) {
-  const item =
-    cart.find(item =>
-      String(item.id) === String(id)
+/* =========================================================
+   CART REMOVE
+   ========================================================= */
+
+function removeFromCart(menuId) {
+
+  state.cart =
+    state.cart.filter(
+      (item) =>
+        String(item.id) !==
+        String(menuId)
     );
+
+  renderCart();
+}
+
+
+/* =========================================================
+   CART QUANTITY
+   ========================================================= */
+
+function changeCartQty(menuId, amount) {
+
+  const item =
+    state.cart.find(
+      (cartItem) =>
+        String(cartItem.id) ===
+        String(menuId)
+    );
+
 
   if (!item) return;
 
-  item.qty += 1;
+
+  item.qty += amount;
+
+
+  if (item.qty <= 0) {
+
+    removeFromCart(menuId);
+    return;
+
+  }
+
 
   renderCart();
-}
-
-
-function clearCart() {
-  if (!cart.length) return;
-
-  cart = [];
-
-  renderCart();
-
-  showToast(
-    "Keranjang dikosongkan.",
-    "success"
-  );
 }
 
 
@@ -630,135 +768,196 @@ function clearCart() {
    ========================================================= */
 
 function getCartTotal() {
-  return cart.reduce(
-    (total, item) =>
-      total +
-      (Number(item.price) || 0) *
-      (Number(item.qty) || 0),
+
+  return state.cart.reduce(
+    (total, item) => {
+
+      return (
+        total +
+        (
+          Number(item.price) *
+          Number(item.qty)
+        )
+      );
+
+    },
     0
   );
+
 }
 
 
+/* =========================================================
+   RENDER CART
+   ========================================================= */
+
 function renderCart() {
-  const container = $("cartItems");
+
+  const container =
+    $("cartItems");
 
   if (!container) return;
 
-  container.innerHTML = "";
 
-  const itemCount =
-    cart.reduce(
+  const count =
+    state.cart.reduce(
       (total, item) =>
-        total + Number(item.qty || 0),
+        total + item.qty,
       0
     );
 
-  const countElement =
-    $("cartItemCount");
-
-  if (countElement) {
-    countElement.textContent =
-      `${itemCount} item`;
-  }
 
   const total =
     getCartTotal();
 
-  const totalElement =
-    $("cartTotal");
 
-  if (totalElement) {
-    totalElement.textContent =
-      formatRupiah(total);
+  if ($("cartItemCount")) {
+
+    $("cartItemCount")
+      .textContent =
+      `${count} item`;
+
   }
 
-  if (!cart.length) {
+
+  if ($("cartTotal")) {
+
+    $("cartTotal")
+      .textContent =
+      formatRupiah(total);
+
+  }
+
+
+  if (!state.cart.length) {
+
     container.innerHTML = `
-      <div class="empty-state">
+      <div class="empty-cart">
         Keranjang masih kosong.
       </div>
     `;
 
-    updateChange();
+  } else {
 
-    return;
+    container.innerHTML =
+      state.cart.map((item) => {
+
+        const subtotal =
+          item.price *
+          item.qty;
+
+
+        return `
+          <div
+            class="cart-item"
+            data-id="${escapeHTML(item.id)}"
+          >
+
+            <div class="cart-item-info">
+
+              <div class="cart-item-name">
+                ${escapeHTML(item.name)}
+              </div>
+
+              <div class="cart-item-price">
+                ${formatRupiah(item.price)}
+              </div>
+
+            </div>
+
+
+            <div class="cart-item-controls">
+
+              <button
+                type="button"
+                class="qty-btn"
+                data-action="minus"
+                data-id="${escapeHTML(item.id)}"
+              >
+                −
+              </button>
+
+              <span class="qty">
+                ${item.qty}
+              </span>
+
+              <button
+                type="button"
+                class="qty-btn"
+                data-action="plus"
+                data-id="${escapeHTML(item.id)}"
+              >
+                +
+              </button>
+
+            </div>
+
+
+            <div class="cart-item-subtotal">
+              ${formatRupiah(subtotal)}
+            </div>
+
+
+            <button
+              type="button"
+              class="cart-remove"
+              data-action="remove"
+              data-id="${escapeHTML(item.id)}"
+            >
+              ×
+            </button>
+
+          </div>
+        `;
+
+      }).join("");
+
   }
 
-  cart.forEach(item => {
-    const row =
-      document.createElement("div");
 
-    row.className = "cart-item";
+  container
+    .querySelectorAll("[data-action]")
+    .forEach((button) => {
 
-    row.innerHTML = `
-      <div class="cart-item-info">
+      button.addEventListener(
+        "click",
+        () => {
 
-        <div class="cart-item-name">
-          ${escapeHtml(item.name)}
-        </div>
+          const id =
+            button.dataset.id;
 
-        <div class="cart-item-price">
-          ${formatRupiah(item.price)}
-        </div>
+          const action =
+            button.dataset.action;
 
-      </div>
 
-      <div class="cart-item-controls">
+          if (action === "plus") {
+            changeCartQty(id, 1);
+          }
 
-        <button
-          type="button"
-          class="qty-btn"
-          data-action="minus"
-        >
-          −
-        </button>
+          if (action === "minus") {
+            changeCartQty(id, -1);
+          }
 
-        <span class="cart-item-qty">
-          ${item.qty}
-        </span>
+          if (action === "remove") {
+            removeFromCart(id);
+          }
 
-        <button
-          type="button"
-          class="qty-btn"
-          data-action="plus"
-        >
-          +
-        </button>
+        }
+      );
 
-      </div>
+    });
 
-      <div class="cart-item-subtotal">
-        ${formatRupiah(
-          item.price * item.qty
-        )}
-      </div>
-    `;
-
-    row
-      .querySelector('[data-action="minus"]')
-      .addEventListener("click", () => {
-        decreaseCartItem(item.id);
-      });
-
-    row
-      .querySelector('[data-action="plus"]')
-      .addEventListener("click", () => {
-        increaseCartItem(item.id);
-      });
-
-    container.appendChild(row);
-  });
 
   updateChange();
 }
 
 
 /* =========================================================
-   PAYMENT / CHANGE
+   PAYMENT
    ========================================================= */
 
 function updateChange() {
+
   const payment =
     Number(
       $("payment")?.value || 0
@@ -767,19 +966,52 @@ function updateChange() {
   const total =
     getCartTotal();
 
+
   const change =
-    Math.max(
-      0,
-      payment - total
-    );
+    payment - total;
 
-  const element =
-    $("changeAmount");
 
-  if (element) {
-    element.textContent =
-      formatRupiah(change);
+  if ($("changeAmount")) {
+
+    $("changeAmount")
+      .textContent =
+      formatRupiah(
+        change > 0 ? change : 0
+      );
+
   }
+
+}
+
+
+/* =========================================================
+   CLEAR CART
+   ========================================================= */
+
+function clearCart() {
+
+  if (!state.cart.length) {
+    return;
+  }
+
+
+  if (
+    !confirm(
+      "Kosongkan semua item di keranjang?"
+    )
+  ) {
+    return;
+  }
+
+
+  state.cart = [];
+
+  if ($("payment")) {
+    $("payment").value = "";
+  }
+
+  renderCart();
+
 }
 
 
@@ -788,37 +1020,45 @@ function updateChange() {
    ========================================================= */
 
 async function saveSale() {
-  if (!cart.length) {
+
+  if (!state.cart.length) {
+
     showToast(
       "Keranjang masih kosong.",
-      "error"
+      "warning"
     );
 
     return;
   }
 
+
   const total =
     getCartTotal();
+
 
   const payment =
     Number(
       $("payment")?.value || 0
     );
 
+
   if (payment < total) {
+
     showToast(
-      "Pembayaran masih kurang.",
-      "error"
+      "Pembayaran kurang.",
+      "warning"
     );
 
     return;
   }
 
+
   const change =
     payment - total;
 
-  const saleItems =
-    cart.map(item => ({
+
+  const items =
+    state.cart.map((item) => ({
       id: item.id,
       name: item.name,
       category: item.category,
@@ -828,86 +1068,225 @@ async function saveSale() {
         item.price * item.qty
     }));
 
+
+  showLoading();
+
+
   try {
+
     const result =
       await apiRequest(
         "saveSale",
         {
           date: getToday(),
-          items: saleItems,
           total,
           payment,
-          change
+          change,
+          items
         }
       );
 
-    const savedSale =
-      result.data || {
-        transactionId:
-          generateTransactionId(),
+
+    const sale =
+      result.sale ||
+      result.data ||
+      {
+        id:
+          result.id ||
+          `TRX-${Date.now()}`,
         date: getToday(),
-        items: saleItems,
         total,
         payment,
-        change
+        change,
+        items
       };
 
-    currentReceipt = {
-      ...savedSale,
-      total,
-      payment,
-      change,
-      items: saleItems
-    };
 
-    cart = [];
+    state.currentSale = sale;
+
+
+    state.cart = [];
+
 
     if ($("payment")) {
       $("payment").value = "";
     }
 
+
     renderCart();
+
 
     await loadSales();
 
-    openReceiptModal(
-      currentReceipt
-    );
 
     showToast(
-      "Transaksi berhasil disimpan.",
-      "success"
+      "Transaksi berhasil disimpan."
     );
 
+
+    openReceipt(sale);
+
+
   } catch (error) {
+
     console.error(error);
+
+    showToast(
+      error.message ||
+      "Gagal menyimpan transaksi.",
+      "error"
+    );
+
+  } finally {
+
+    hideLoading();
+
   }
+
 }
 
 
 /* =========================================================
-   TRANSACTION ID
+   SALES
    ========================================================= */
 
-function generateTransactionId() {
-  const now = new Date();
+async function loadSales() {
 
-  const date =
-    now.getFullYear() +
-    String(now.getMonth() + 1)
-      .padStart(2, "0") +
-    String(now.getDate())
-      .padStart(2, "0");
+  try {
 
-  const time =
-    String(now.getHours())
-      .padStart(2, "0") +
-    String(now.getMinutes())
-      .padStart(2, "0") +
-    String(now.getSeconds())
-      .padStart(2, "0");
+    const result =
+      await apiRequest("getSales");
 
-  return `TRX-${date}-${time}`;
+
+    state.sales =
+      normalizeArray(
+        result.sales ??
+        result.data ??
+        result.rows ??
+        []
+      );
+
+
+    renderSalesTable();
+    updateStatistics();
+
+  } catch (error) {
+
+    console.error(error);
+
+    throw error;
+
+  }
+
+}
+
+
+/* =========================================================
+   SALES VALUE HELPER
+   ========================================================= */
+
+function getSaleId(sale) {
+
+  return (
+    sale.id ??
+    sale.ID ??
+    sale.saleId ??
+    sale.transactionId ??
+    sale.noTransaksi ??
+    sale.no_transaksi ??
+    ""
+  );
+
+}
+
+
+function getSaleDate(sale) {
+
+  return (
+    sale.date ??
+    sale.tanggal ??
+    sale.Tanggal ??
+    ""
+  );
+
+}
+
+
+function getSaleTotal(sale) {
+
+  return Number(
+    sale.total ??
+    sale.Total ??
+    0
+  );
+
+}
+
+
+function getSalePayment(sale) {
+
+  return Number(
+    sale.payment ??
+    sale.pembayaran ??
+    sale.Pembayaran ??
+    0
+  );
+
+}
+
+
+function getSaleChange(sale) {
+
+  return Number(
+    sale.change ??
+    sale.kembalian ??
+    sale.Kembalian ??
+    0
+  );
+
+}
+
+
+function getSaleItems(sale) {
+
+  return (
+    sale.items ??
+    sale.item ??
+    sale.Items ??
+    []
+  );
+
+}
+
+
+function getSaleItemCount(sale) {
+
+  const items =
+    getSaleItems(sale);
+
+
+  if (Array.isArray(items)) {
+
+    return items.reduce(
+      (total, item) =>
+        total +
+        Number(
+          item.qty ??
+          item.quantity ??
+          1
+        ),
+      0
+    );
+
+  }
+
+
+  return Number(
+    sale.itemCount ??
+    sale.jumlahItem ??
+    0
+  );
+
 }
 
 
@@ -916,49 +1295,54 @@ function generateTransactionId() {
    ========================================================= */
 
 function getFilteredSales() {
-  if (currentSalesFilter === "today") {
-    const today = getToday();
 
-    return sales.filter(sale =>
-      normalizeDate(sale.date) === today
-    );
+  if (
+    state.salesFilter === "all"
+  ) {
+
+    return [...state.sales];
+
   }
 
-  if (currentSalesFilter === "date") {
-    const date =
-      $("salesDate")?.value || "";
 
-    if (!date) {
-      return sales;
+  return state.sales.filter(
+    (sale) => {
+
+      const date =
+        String(
+          getSaleDate(sale)
+        ).slice(0, 10);
+
+
+      return (
+        date ===
+        state.salesFilter
+      );
+
     }
+  );
 
-    return sales.filter(sale =>
-      normalizeDate(sale.date) === date
-    );
-  }
-
-  return sales;
 }
 
 
 /* =========================================================
-   RENDER SALES
+   RENDER SALES TABLE
    ========================================================= */
 
-function renderSales() {
+function renderSalesTable() {
+
   const tbody =
     $("salesTableBody");
 
   if (!tbody) return;
 
-  const filteredSales =
+
+  const sales =
     getFilteredSales();
 
-  tbody.innerHTML = "";
 
-  updateSalesStats(filteredSales);
+  if (!sales.length) {
 
-  if (!filteredSales.length) {
     tbody.innerHTML = `
       <tr>
         <td
@@ -973,171 +1357,294 @@ function renderSales() {
     return;
   }
 
-  filteredSales.forEach((sale, index) => {
-    const row =
-      document.createElement("tr");
 
-    const itemText =
-      getSaleItemsText(sale.items);
+  tbody.innerHTML =
+    sales.map((sale, index) => {
 
-    row.innerHTML = `
-      <td>
-        ${index + 1}
-      </td>
+      const id =
+        getSaleId(sale);
 
-      <td>
-        ${escapeHtml(
-          sale.transactionId || "-"
-        )}
-      </td>
+      const date =
+        getSaleDate(sale);
 
-      <td>
-        ${escapeHtml(
-          formatDate(sale.date)
-        )}
-      </td>
+      const items =
+        getSaleItemCount(sale);
 
-      <td>
-        ${escapeHtml(itemText)}
-      </td>
+      const total =
+        getSaleTotal(sale);
 
-      <td class="text-right">
-        ${formatRupiah(sale.total)}
-      </td>
+      const payment =
+        getSalePayment(sale);
 
-      <td class="text-right">
-        ${formatRupiah(sale.payment)}
-      </td>
+      const change =
+        getSaleChange(sale);
 
-      <td class="text-right">
-        ${formatRupiah(sale.change)}
-      </td>
 
-      <td>
+      return `
+        <tr>
 
-        <div class="table-actions">
+          <td>
+            ${index + 1}
+          </td>
 
-          <button
-            type="button"
-            class="btn btn-light btn-small"
-            data-action="receipt"
-          >
-            Struk
-          </button>
+          <td>
+            ${escapeHTML(id)}
+          </td>
 
-          <button
-            type="button"
-            class="btn btn-danger btn-small"
-            data-action="delete"
-          >
-            Hapus
-          </button>
+          <td>
+            ${escapeHTML(date)}
+          </td>
 
-        </div>
+          <td>
+            ${items}
+          </td>
 
-      </td>
-    `;
+          <td class="text-right">
+            ${formatRupiah(total)}
+          </td>
 
-    row
-      .querySelector(
-        '[data-action="receipt"]'
-      )
-      .addEventListener(
+          <td class="text-right">
+            ${formatRupiah(payment)}
+          </td>
+
+          <td class="text-right">
+            ${formatRupiah(change)}
+          </td>
+
+          <td>
+
+            <button
+              type="button"
+              class="btn btn-small btn-light"
+              data-sale-action="receipt"
+              data-sale-id="${escapeHTML(id)}"
+            >
+              Struk
+            </button>
+
+            <button
+              type="button"
+              class="btn btn-small btn-danger"
+              data-sale-action="delete"
+              data-sale-id="${escapeHTML(id)}"
+            >
+              Hapus
+            </button>
+
+          </td>
+
+        </tr>
+      `;
+
+    }).join("");
+
+
+  tbody
+    .querySelectorAll(
+      "[data-sale-action]"
+    )
+    .forEach((button) => {
+
+      button.addEventListener(
         "click",
         () => {
-          openReceiptModal(
-            sale
-          );
+
+          const id =
+            button.dataset.saleId;
+
+          const action =
+            button.dataset.saleAction;
+
+
+          if (
+            action === "receipt"
+          ) {
+
+            const sale =
+              state.sales.find(
+                (item) =>
+                  String(
+                    getSaleId(item)
+                  ) === String(id)
+              );
+
+            if (sale) {
+              openReceipt(sale);
+            }
+
+          }
+
+
+          if (
+            action === "delete"
+          ) {
+
+            deleteSale(id);
+
+          }
+
         }
       );
 
-    row
-      .querySelector(
-        '[data-action="delete"]'
-      )
-      .addEventListener(
-        "click",
-        () => {
-          deleteSale(sale);
-        }
-      );
+    });
 
-    tbody.appendChild(row);
-  });
 }
 
 
 /* =========================================================
-   SALES ITEMS TEXT
+   STATISTICS
    ========================================================= */
 
-function getSaleItemsText(items) {
-  if (Array.isArray(items)) {
-    return items
-      .map(item =>
-        `${item.name || "-"} x${item.qty || 1}`
-      )
-      .join(", ");
-  }
+function updateStatistics() {
 
-  if (typeof items === "string") {
-    try {
-      const parsed =
-        JSON.parse(items);
-
-      if (Array.isArray(parsed)) {
-        return parsed
-          .map(item =>
-            `${item.name || "-"} x${item.qty || 1}`
-          )
-          .join(", ");
-      }
-    } catch (error) {
-      return items;
-    }
-
-    return items;
-  }
-
-  return "-";
-}
+  const sales =
+    getFilteredSales();
 
 
-/* =========================================================
-   SALES STATISTICS
-   ========================================================= */
-
-function updateSalesStats(list) {
   const totalTransactions =
-    list.length;
+    sales.length;
+
 
   const totalSales =
-    list.reduce(
-      (sum, sale) =>
-        sum +
-        (Number(sale.total) || 0),
+    sales.reduce(
+      (total, sale) =>
+        total +
+        getSaleTotal(sale),
       0
     );
 
+
   const average =
     totalTransactions
-      ? totalSales / totalTransactions
+      ? totalSales /
+        totalTransactions
       : 0;
 
+
   if ($("totalTransactions")) {
-    $("totalTransactions").textContent =
+
+    $("totalTransactions")
+      .textContent =
       totalTransactions;
+
   }
+
 
   if ($("totalSales")) {
-    $("totalSales").textContent =
+
+    $("totalSales")
+      .textContent =
       formatRupiah(totalSales);
+
   }
 
+
   if ($("averageSales")) {
-    $("averageSales").textContent =
+
+    $("averageSales")
+      .textContent =
       formatRupiah(average);
+
   }
+
+}
+
+
+/* =========================================================
+   SALES FILTER INIT
+   ========================================================= */
+
+function initSalesFilter() {
+
+  $("salesDate")
+    ?.addEventListener(
+      "change",
+      () => {
+
+        state.salesFilter =
+          $("salesDate").value ||
+          "all";
+
+        renderSalesTable();
+        updateStatistics();
+
+      }
+    );
+
+
+  $("todaySalesBtn")
+    ?.addEventListener(
+      "click",
+      () => {
+
+        const today =
+          getToday();
+
+        state.salesFilter =
+          today;
+
+        if ($("salesDate")) {
+          $("salesDate").value =
+            today;
+        }
+
+        renderSalesTable();
+        updateStatistics();
+
+      }
+    );
+
+
+  $("allSalesBtn")
+    ?.addEventListener(
+      "click",
+      () => {
+
+        state.salesFilter =
+          "all";
+
+        if ($("salesDate")) {
+          $("salesDate").value = "";
+        }
+
+        renderSalesTable();
+        updateStatistics();
+
+      }
+    );
+
+
+  $("refreshSalesBtn")
+    ?.addEventListener(
+      "click",
+      async () => {
+
+        showLoading();
+
+        try {
+
+          await loadSales();
+
+          showToast(
+            "Data penjualan diperbarui."
+          );
+
+        } catch (error) {
+
+          showToast(
+            error.message,
+            "error"
+          );
+
+        } finally {
+
+          hideLoading();
+
+        }
+
+      }
+    );
+
 }
 
 
@@ -1145,90 +1652,51 @@ function updateSalesStats(list) {
    DELETE SALE
    ========================================================= */
 
-async function deleteSale(sale) {
-  const confirmed =
-    confirm(
-      `Hapus transaksi ${sale.transactionId || ""}?`
-    );
+async function deleteSale(id) {
 
-  if (!confirmed) return;
+  if (
+    !confirm(
+      "Hapus transaksi ini?"
+    )
+  ) {
+    return;
+  }
+
+
+  showLoading();
+
 
   try {
+
     await apiRequest(
       "deleteSale",
       {
-        id: sale.id,
-        transactionId:
-          sale.transactionId
+        id
       }
     );
 
+
     showToast(
-      "Transaksi berhasil dihapus.",
-      "success"
+      "Transaksi berhasil dihapus."
     );
+
 
     await loadSales();
 
+
   } catch (error) {
-    console.error(error);
-  }
-}
-
-
-/* =========================================================
-   RESET SALES TODAY
-   ========================================================= */
-
-async function resetSalesToday() {
-  const confirmed =
-    confirm(
-      "Yakin ingin menghapus semua transaksi hari ini?"
-    );
-
-  if (!confirmed) return;
-
-  try {
-    await apiRequest(
-      "resetTodaySales",
-      {
-        date: getToday()
-      }
-    );
-
-    closeModal("resetModal");
 
     showToast(
-      "Penjualan hari ini berhasil direset.",
-      "success"
+      error.message,
+      "error"
     );
 
-    await loadSales();
+  } finally {
 
-  } catch (error) {
-    console.error(error);
-  }
-}
+    hideLoading();
 
-
-/* =========================================================
-   FORMAT DATE
-   ========================================================= */
-
-function formatDate(value) {
-  const date =
-    normalizeDate(value);
-
-  if (!date) return "-";
-
-  const parts =
-    date.split("-");
-
-  if (parts.length !== 3) {
-    return date;
   }
 
-  return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
 
@@ -1237,14 +1705,15 @@ function formatDate(value) {
    ========================================================= */
 
 function renderMenuTable() {
+
   const tbody =
     $("menuTableBody");
 
   if (!tbody) return;
 
-  tbody.innerHTML = "";
 
-  if (!menus.length) {
+  if (!state.menus.length) {
+
     tbody.innerHTML = `
       <tr>
         <td
@@ -1259,171 +1728,260 @@ function renderMenuTable() {
     return;
   }
 
-  menus.forEach((menu, index) => {
-    const row =
-      document.createElement("tr");
 
-    row.innerHTML = `
-      <td>
-        ${index + 1}
-      </td>
+  tbody.innerHTML =
+    state.menus.map(
+      (menu, index) => {
 
-      <td>
-        ${escapeHtml(menu.name)}
-      </td>
+        const id =
+          getMenuId(menu);
 
-      <td>
-        ${escapeHtml(
-          menu.category || "-"
-        )}
-      </td>
+        const name =
+          getMenuName(menu);
 
-      <td class="text-right">
-        ${formatRupiah(menu.price)}
-      </td>
+        const category =
+          getMenuCategory(menu);
 
-      <td>
+        const price =
+          getMenuPrice(menu);
 
-        <div class="table-actions">
 
-          <button
-            type="button"
-            class="btn btn-light btn-small"
-            data-action="edit"
-          >
-            Edit
-          </button>
+        return `
+          <tr>
 
-          <button
-            type="button"
-            class="btn btn-danger btn-small"
-            data-action="delete"
-          >
-            Hapus
-          </button>
+            <td>
+              ${index + 1}
+            </td>
 
-        </div>
+            <td>
+              ${escapeHTML(name)}
+            </td>
 
-      </td>
-    `;
+            <td>
+              ${escapeHTML(
+                category || "Umum"
+              )}
+            </td>
 
-    row
-      .querySelector(
-        '[data-action="edit"]'
-      )
-      .addEventListener(
+            <td class="text-right">
+              ${formatRupiah(price)}
+            </td>
+
+            <td>
+
+              <button
+                type="button"
+                class="btn btn-small btn-light"
+                data-menu-action="edit"
+                data-menu-id="${escapeHTML(id)}"
+              >
+                Edit
+              </button>
+
+              <button
+                type="button"
+                class="btn btn-small btn-danger"
+                data-menu-action="delete"
+                data-menu-id="${escapeHTML(id)}"
+              >
+                Hapus
+              </button>
+
+            </td>
+
+          </tr>
+        `;
+
+      }
+    ).join("");
+
+
+  tbody
+    .querySelectorAll(
+      "[data-menu-action]"
+    )
+    .forEach((button) => {
+
+      button.addEventListener(
         "click",
         () => {
-          openMenuModal(menu);
+
+          const id =
+            button.dataset.menuId;
+
+          const action =
+            button.dataset.menuAction;
+
+
+          if (action === "edit") {
+            editMenu(id);
+          }
+
+
+          if (action === "delete") {
+            deleteMenu(id);
+          }
+
         }
       );
 
-    row
-      .querySelector(
-        '[data-action="delete"]'
-      )
-      .addEventListener(
-        "click",
-        () => {
-          deleteMenu(menu);
-        }
-      );
+    });
 
-    tbody.appendChild(row);
-  });
 }
 
 
 /* =========================================================
-   ADD / EDIT MENU MODAL
+   MENU MODAL
    ========================================================= */
 
 function openMenuModal(menu = null) {
+
   const modal =
     $("menuModal");
 
   if (!modal) return;
 
-  editingMenuId =
-    menu ? menu.id : null;
 
-  if (menu) {
-    $("menuModalTitle").textContent =
-      "Edit Menu";
+  $("menuModalTitle").textContent =
+    menu
+      ? "Edit Menu"
+      : "Tambah Menu";
 
-    $("menuId").value =
-      menu.id ?? "";
 
-    $("menuName").value =
-      menu.name ?? "";
+  $("menuId").value =
+    menu
+      ? getMenuId(menu)
+      : "";
 
-    $("menuCategory").value =
-      menu.category ?? "";
 
-    $("menuPrice").value =
-      menu.price ?? "";
+  $("menuName").value =
+    menu
+      ? getMenuName(menu)
+      : "";
 
-  } else {
-    $("menuModalTitle").textContent =
-      "Tambah Menu";
 
-    $("menuId").value = "";
-    $("menuName").value = "";
-    $("menuCategory").value = "";
-    $("menuPrice").value = "";
-  }
+  $("menuCategory").value =
+    menu
+      ? getMenuCategory(menu)
+      : "";
 
-  openModal("menuModal");
 
-  setTimeout(() => {
-    $("menuName")?.focus();
-  }, 100);
+  $("menuPrice").value =
+    menu
+      ? getMenuPrice(menu)
+      : "";
+
+
+  modal.classList.add("show");
+  modal.setAttribute(
+    "aria-hidden",
+    "false"
+  );
+
 }
 
 
+function closeMenuModal() {
+
+  const modal =
+    $("menuModal");
+
+  if (!modal) return;
+
+  modal.classList.remove("show");
+
+  modal.setAttribute(
+    "aria-hidden",
+    "true"
+  );
+
+}
+
+
+/* =========================================================
+   EDIT MENU
+   ========================================================= */
+
+function editMenu(id) {
+
+  const menu =
+    state.menus.find(
+      (item) =>
+        String(
+          getMenuId(item)
+        ) === String(id)
+    );
+
+
+  if (!menu) {
+
+    showToast(
+      "Menu tidak ditemukan.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  openMenuModal(menu);
+
+}
+
+
+/* =========================================================
+   SAVE MENU
+   ========================================================= */
+
 async function saveMenu(event) {
+
   event.preventDefault();
 
+
+  const id =
+    $("menuId").value.trim();
+
   const name =
-    $("menuName")
-      ?.value
-      .trim();
+    $("menuName").value.trim();
 
   const category =
-    $("menuCategory")
-      ?.value
-      .trim();
+    $("menuCategory").value.trim();
 
   const price =
     Number(
-      $("menuPrice")?.value || 0
+      $("menuPrice").value
     );
 
-  const id =
-    $("menuId")?.value ||
-    editingMenuId ||
-    "";
 
   if (!name) {
+
     showToast(
       "Nama menu wajib diisi.",
-      "error"
+      "warning"
     );
 
     return;
   }
 
-  if (price < 0) {
+
+  if (!Number.isFinite(price) || price < 0) {
+
     showToast(
-      "Harga tidak valid.",
-      "error"
+      "Harga menu tidak valid.",
+      "warning"
     );
 
     return;
   }
+
+
+  showLoading();
+
 
   try {
+
     if (id) {
+
       await apiRequest(
         "updateMenu",
         {
@@ -1434,14 +1992,15 @@ async function saveMenu(event) {
         }
       );
 
+
       showToast(
-        "Menu berhasil diperbarui.",
-        "success"
+        "Menu berhasil diperbarui."
       );
 
     } else {
+
       await apiRequest(
-        "addMenu",
+        "saveMenu",
         {
           name,
           category,
@@ -1449,21 +2008,34 @@ async function saveMenu(event) {
         }
       );
 
+
       showToast(
-        "Menu berhasil ditambahkan.",
-        "success"
+        "Menu berhasil ditambahkan."
       );
+
     }
 
-    closeModal("menuModal");
 
-    editingMenuId = null;
+    closeMenuModal();
 
     await loadMenus();
 
+
   } catch (error) {
+
     console.error(error);
+
+    showToast(
+      error.message,
+      "error"
+    );
+
+  } finally {
+
+    hideLoading();
+
   }
+
 }
 
 
@@ -1471,49 +2043,130 @@ async function saveMenu(event) {
    DELETE MENU
    ========================================================= */
 
-async function deleteMenu(menu) {
-  const confirmed =
-    confirm(
-      `Hapus menu "${menu.name}"?`
-    );
+async function deleteMenu(id) {
 
-  if (!confirmed) return;
+  if (
+    !confirm(
+      "Hapus menu ini?"
+    )
+  ) {
+    return;
+  }
+
+
+  showLoading();
+
 
   try {
+
     await apiRequest(
       "deleteMenu",
       {
-        id: menu.id
+        id
       }
     );
 
-    cart =
-      cart.filter(item =>
-        String(item.id) !==
-        String(menu.id)
-      );
-
-    renderCart();
 
     showToast(
-      "Menu berhasil dihapus.",
-      "success"
+      "Menu berhasil dihapus."
     );
+
 
     await loadMenus();
 
+
   } catch (error) {
-    console.error(error);
+
+    showToast(
+      error.message,
+      "error"
+    );
+
+  } finally {
+
+    hideLoading();
+
   }
+
 }
 
 
 /* =========================================================
-   MODAL HELPER
+   MENU INIT
    ========================================================= */
 
-function openModal(id) {
-  const modal = $(id);
+function initMenuManagement() {
+
+  $("addMenuBtn")
+    ?.addEventListener(
+      "click",
+      () => openMenuModal()
+    );
+
+
+  $("closeMenuModal")
+    ?.addEventListener(
+      "click",
+      closeMenuModal
+    );
+
+
+  $("cancelMenuBtn")
+    ?.addEventListener(
+      "click",
+      closeMenuModal
+    );
+
+
+  $("menuForm")
+    ?.addEventListener(
+      "submit",
+      saveMenu
+    );
+
+
+  $("refreshMenuTableBtn")
+    ?.addEventListener(
+      "click",
+      async () => {
+
+        showLoading();
+
+        try {
+
+          await loadMenus();
+
+          showToast(
+            "Menu berhasil diperbarui."
+          );
+
+        } catch (error) {
+
+          showToast(
+            error.message,
+            "error"
+          );
+
+        } finally {
+
+          hideLoading();
+
+        }
+
+      }
+    );
+
+}
+
+
+/* =========================================================
+   RESET SALES MODAL
+   ========================================================= */
+
+function openResetModal() {
+
+  const modal =
+    $("resetModal");
 
   if (!modal) return;
 
@@ -1523,11 +2176,14 @@ function openModal(id) {
     "aria-hidden",
     "false"
   );
+
 }
 
 
-function closeModal(id) {
-  const modal = $(id);
+function closeResetModal() {
+
+  const modal =
+    $("resetModal");
 
   if (!modal) return;
 
@@ -1537,6 +2193,97 @@ function closeModal(id) {
     "aria-hidden",
     "true"
   );
+
+}
+
+
+/* =========================================================
+   RESET TODAY
+   ========================================================= */
+
+async function resetTodaySales() {
+
+  if (
+    !confirm(
+      "Yakin ingin menghapus semua transaksi hari ini?"
+    )
+  ) {
+    return;
+  }
+
+
+  showLoading();
+
+
+  try {
+
+    await apiRequest(
+      "resetSales",
+      {
+        date: getToday()
+      }
+    );
+
+
+    showToast(
+      "Penjualan hari ini berhasil direset."
+    );
+
+
+    closeResetModal();
+
+    await loadSales();
+
+
+  } catch (error) {
+
+    showToast(
+      error.message,
+      "error"
+    );
+
+  } finally {
+
+    hideLoading();
+
+  }
+
+}
+
+
+/* =========================================================
+   RESET INIT
+   ========================================================= */
+
+function initReset() {
+
+  $("resetSalesBtn")
+    ?.addEventListener(
+      "click",
+      openResetModal
+    );
+
+
+  $("closeResetModal")
+    ?.addEventListener(
+      "click",
+      closeResetModal
+    );
+
+
+  $("cancelResetBtn")
+    ?.addEventListener(
+      "click",
+      closeResetModal
+    );
+
+
+  $("confirmResetBtn")
+    ?.addEventListener(
+      "click",
+      resetTodaySales
+    );
+
 }
 
 
@@ -1544,48 +2291,84 @@ function closeModal(id) {
    RECEIPT
    ========================================================= */
 
-function openReceiptModal(sale) {
-  currentReceipt = sale;
+function openReceipt(sale) {
+
+  const modal =
+    $("receiptModal");
 
   const content =
     $("receiptContent");
 
-  if (!content) return;
+  if (!modal || !content) {
+    return;
+  }
 
-  const items =
-    parseReceiptItems(
-      sale.items
-    );
 
-  const transactionId =
-    sale.transactionId ||
-    sale.noTransaksi ||
-    "-";
+  state.currentSale =
+    sale;
+
+
+  const id =
+    getSaleId(sale);
 
   const date =
-    sale.date ||
-    getToday();
+    getSaleDate(sale);
 
-  let itemsHtml = "";
+  const total =
+    getSaleTotal(sale);
 
-  if (items.length) {
-    itemsHtml = items
-      .map(item => {
-        const subtotal =
-          Number(item.subtotal) ||
-          (
-            Number(item.price || 0) *
-            Number(item.qty || 0)
+  const payment =
+    getSalePayment(sale);
+
+  const change =
+    getSaleChange(sale);
+
+  const items =
+    getSaleItems(sale);
+
+
+  let itemsHTML = "";
+
+
+  if (Array.isArray(items)) {
+
+    itemsHTML =
+      items.map((item) => {
+
+        const name =
+          item.name ??
+          item.nama ??
+          "";
+
+        const qty =
+          Number(
+            item.qty ??
+            item.quantity ??
+            1
           );
 
+        const price =
+          Number(
+            item.price ??
+            item.harga ??
+            0
+          );
+
+        const subtotal =
+          Number(
+            item.subtotal ??
+            (
+              price * qty
+            )
+          );
+
+
         return `
-          <div class="receipt-item">
+          <div class="receipt-row">
 
             <div>
-              ${escapeHtml(
-                item.name || "-"
-              )}
-              x${item.qty || 1}
+              ${escapeHTML(name)}
+              × ${qty}
             </div>
 
             <div>
@@ -1594,125 +2377,92 @@ function openReceiptModal(sale) {
 
           </div>
         `;
-      })
-      .join("");
-  } else {
-    itemsHtml = `
-      <div class="receipt-item">
-        <div>
-          ${escapeHtml(
-            getSaleItemsText(
-              sale.items
-            )
-          )}
-        </div>
-      </div>
-    `;
+
+      }).join("");
+
   }
+
 
   content.innerHTML = `
     <div class="receipt">
 
-      <div class="receipt-store">
+      <div class="receipt-title">
         KASIR
       </div>
 
       <div class="receipt-info">
-        <div>
-          No. Transaksi
-        </div>
-
-        <div>
-          ${escapeHtml(transactionId)}
-        </div>
+        No: ${escapeHTML(id)}
       </div>
 
       <div class="receipt-info">
-        <div>
-          Tanggal
-        </div>
-
-        <div>
-          ${escapeHtml(
-            formatDate(date)
-          )}
-        </div>
+        ${escapeHTML(date)}
       </div>
 
-      <div class="receipt-divider"></div>
+      <hr>
 
-      <div class="receipt-items">
-        ${itemsHtml}
-      </div>
+      ${itemsHTML}
 
-      <div class="receipt-divider"></div>
+      <hr>
 
-      <div class="receipt-total-row">
-        <span>
-          Total
-        </span>
-
+      <div class="receipt-row">
+        <strong>Total</strong>
         <strong>
-          ${formatRupiah(
-            sale.total
-          )}
+          ${formatRupiah(total)}
         </strong>
       </div>
 
-      <div class="receipt-info">
-        <div>
-          Pembayaran
-        </div>
-
-        <div>
-          ${formatRupiah(
-            sale.payment
-          )}
-        </div>
+      <div class="receipt-row">
+        <span>Pembayaran</span>
+        <span>
+          ${formatRupiah(payment)}
+        </span>
       </div>
 
-      <div class="receipt-info">
-        <div>
-          Kembalian
-        </div>
-
-        <div>
-          ${formatRupiah(
-            sale.change
-          )}
-        </div>
+      <div class="receipt-row">
+        <span>Kembalian</span>
+        <span>
+          ${formatRupiah(change)}
+        </span>
       </div>
 
-      <div class="receipt-footer">
-        Terima kasih
+      <hr>
+
+      <div class="receipt-thanks">
+        Terima kasih.
       </div>
 
     </div>
   `;
 
-  openModal("receiptModal");
+
+  modal.classList.add("show");
+
+  modal.setAttribute(
+    "aria-hidden",
+    "false"
+  );
+
 }
 
 
-function parseReceiptItems(items) {
-  if (Array.isArray(items)) {
-    return items;
-  }
+/* =========================================================
+   CLOSE RECEIPT
+   ========================================================= */
 
-  if (typeof items === "string") {
-    try {
-      const parsed =
-        JSON.parse(items);
+function closeReceipt() {
 
-      if (Array.isArray(parsed)) {
-        return parsed;
-      }
-    } catch (error) {
-      return [];
-    }
-  }
+  const modal =
+    $("receiptModal");
 
-  return [];
+  if (!modal) return;
+
+  modal.classList.remove("show");
+
+  modal.setAttribute(
+    "aria-hidden",
+    "true"
+  );
+
 }
 
 
@@ -1721,28 +2471,31 @@ function parseReceiptItems(items) {
    ========================================================= */
 
 function printReceipt() {
-  if (!currentReceipt) return;
 
   const content =
     $("receiptContent");
 
   if (!content) return;
 
+
   const printWindow =
     window.open(
       "",
       "_blank",
-      "width=420,height=700"
+      "width=400,height=700"
     );
 
+
   if (!printWindow) {
+
     showToast(
-      "Popup print diblokir browser.",
-      "error"
+      "Popup diblokir browser.",
+      "warning"
     );
 
     return;
   }
+
 
   printWindow.document.write(`
     <!DOCTYPE html>
@@ -1757,76 +2510,46 @@ function printReceipt() {
 
       <style>
 
-        * {
-          box-sizing: border-box;
-        }
-
         body {
-          margin: 0;
-          padding: 20px;
           font-family:
             Arial,
-            Helvetica,
             sans-serif;
-          color: #111;
-          background: #fff;
+
+          width: 300px;
+          margin: 20px auto;
+          color: #000;
         }
 
-        .receipt {
-          width: 100%;
-          max-width: 320px;
-          margin: 0 auto;
-          font-size: 13px;
-        }
-
-        .receipt-store {
+        .receipt-title {
           text-align: center;
-          font-size: 22px;
-          font-weight: 700;
-          margin-bottom: 16px;
+          font-weight: bold;
+          font-size: 20px;
+          margin-bottom: 8px;
         }
 
         .receipt-info {
-          display: flex;
-          justify-content: space-between;
-          gap: 15px;
-          margin-bottom: 6px;
+          font-size: 12px;
+          margin-bottom: 3px;
         }
 
-        .receipt-divider {
-          border-top:
-            1px dashed #999;
-          margin: 12px 0;
-        }
-
-        .receipt-item {
+        .receipt-row {
           display: flex;
           justify-content: space-between;
           gap: 10px;
-          margin-bottom: 7px;
+          font-size: 13px;
+          margin: 5px 0;
         }
 
-        .receipt-total-row {
-          display: flex;
-          justify-content: space-between;
-          font-size: 16px;
-          margin-bottom: 10px;
+        hr {
+          border: 0;
+          border-top: 1px dashed #000;
+          margin: 10px 0;
         }
 
-        .receipt-footer {
+        .receipt-thanks {
           text-align: center;
-          margin-top: 20px;
-        }
-
-        @media print {
-          body {
-            padding: 0;
-          }
-
-          .receipt {
-            max-width: none;
-            width: 100%;
-          }
+          font-size: 13px;
+          margin-top: 15px;
         }
 
       </style>
@@ -1837,87 +2560,130 @@ function printReceipt() {
 
       ${content.innerHTML}
 
+      <script>
+        window.onload = function() {
+          window.print();
+          window.close();
+        };
+      <\/script>
+
     </body>
 
     </html>
   `);
 
+
   printWindow.document.close();
 
-  printWindow.focus();
-
-  setTimeout(() => {
-    printWindow.print();
-    printWindow.close();
-  }, 300);
 }
 
 
 /* =========================================================
-   CSV DOWNLOAD
+   RECEIPT INIT
+   ========================================================= */
+
+function initReceipt() {
+
+  $("closeReceiptModal")
+    ?.addEventListener(
+      "click",
+      closeReceipt
+    );
+
+
+  $("closeReceiptBtn")
+    ?.addEventListener(
+      "click",
+      closeReceipt
+    );
+
+
+  $("printReceiptBtn")
+    ?.addEventListener(
+      "click",
+      printReceipt
+    );
+
+}
+
+
+/* =========================================================
+   DOWNLOAD CSV
    ========================================================= */
 
 function downloadSalesCSV() {
-  const list =
+
+  const sales =
     getFilteredSales();
 
-  if (!list.length) {
+
+  if (!sales.length) {
+
     showToast(
-      "Tidak ada transaksi untuk di-download.",
-      "error"
+      "Tidak ada data untuk di-download.",
+      "warning"
     );
 
     return;
   }
 
-  const headers = [
-    "No",
-    "No. Transaksi",
-    "Tanggal",
-    "Item",
-    "Total",
-    "Pembayaran",
-    "Kembalian"
+
+  const rows = [
+    [
+      "No",
+      "No. Transaksi",
+      "Tanggal",
+      "Item",
+      "Total",
+      "Pembayaran",
+      "Kembalian"
+    ]
   ];
 
-  const rows = list.map(
-    (sale, index) => [
-      index + 1,
-      sale.transactionId || "",
-      sale.date || "",
-      getSaleItemsText(
-        sale.items
-      ),
-      sale.total || 0,
-      sale.payment || 0,
-      sale.change || 0
-    ]
+
+  sales.forEach(
+    (sale, index) => {
+
+      rows.push([
+        index + 1,
+        getSaleId(sale),
+        getSaleDate(sale),
+        getSaleItemCount(sale),
+        getSaleTotal(sale),
+        getSalePayment(sale),
+        getSaleChange(sale)
+      ]);
+
+    }
   );
 
-  const csv = [
-    headers,
-    ...rows
-  ]
-    .map(row =>
-      row
-        .map(value =>
-          csvEscape(value)
-        )
-        .join(",")
-    )
-    .join("\n");
+
+  const csv =
+    rows.map(
+      (row) =>
+        row.map(
+          (value) =>
+            `"${String(value)
+              .replace(/"/g, '""')}"`
+        ).join(",")
+    ).join("\n");
+
 
   const blob =
     new Blob(
-      ["\ufeff" + csv],
+      [
+        "\uFEFF" + csv
+      ],
       {
         type:
           "text/csv;charset=utf-8;"
       }
     );
 
+
   const url =
     URL.createObjectURL(blob);
+
 
   const link =
     document.createElement("a");
@@ -1925,7 +2691,8 @@ function downloadSalesCSV() {
   link.href = url;
 
   link.download =
-    `laporan-penjualan-${getToday()}.csv`;
+    `penjualan-${getToday()}.csv`;
+
 
   document.body.appendChild(link);
 
@@ -1934,17 +2701,12 @@ function downloadSalesCSV() {
   link.remove();
 
   URL.revokeObjectURL(url);
-}
 
 
-function csvEscape(value) {
-  const string =
-    String(value ?? "");
+  showToast(
+    "CSV berhasil dibuat."
+  );
 
-  return `"${string.replace(
-    /"/g,
-    '""'
-  )}"`;
 }
 
 
@@ -1953,22 +2715,35 @@ function csvEscape(value) {
    ========================================================= */
 
 function printSalesReport() {
-  const list =
+
+  const sales =
     getFilteredSales();
 
-  if (!list.length) {
+
+  const printWindow =
+    window.open(
+      "",
+      "_blank",
+      "width=1000,height=700"
+    );
+
+
+  if (!printWindow) {
+
     showToast(
-      "Tidak ada transaksi untuk dicetak.",
-      "error"
+      "Popup diblokir browser.",
+      "warning"
     );
 
     return;
   }
 
+
   const rows =
-    list
-      .map(
-        (sale, index) => `
+    sales.map(
+      (sale, index) => {
+
+        return `
           <tr>
 
             <td>
@@ -1976,70 +2751,45 @@ function printSalesReport() {
             </td>
 
             <td>
-              ${escapeHtml(
-                sale.transactionId || "-"
+              ${escapeHTML(
+                getSaleId(sale)
               )}
             </td>
 
             <td>
-              ${escapeHtml(
-                formatDate(sale.date)
+              ${escapeHTML(
+                getSaleDate(sale)
               )}
             </td>
 
             <td>
-              ${escapeHtml(
-                getSaleItemsText(
-                  sale.items
-                )
+              ${getSaleItemCount(sale)}
+            </td>
+
+            <td>
+              ${formatRupiah(
+                getSaleTotal(sale)
               )}
             </td>
 
             <td>
               ${formatRupiah(
-                sale.total
+                getSalePayment(sale)
               )}
             </td>
 
             <td>
               ${formatRupiah(
-                sale.payment
-              )}
-            </td>
-
-            <td>
-              ${formatRupiah(
-                sale.change
+                getSaleChange(sale)
               )}
             </td>
 
           </tr>
-        `
-      )
-      .join("");
+        `;
 
-  const total =
-    list.reduce(
-      (sum, sale) =>
-        sum +
-        Number(sale.total || 0),
-      0
-    );
+      }
+    ).join("");
 
-  const printWindow =
-    window.open(
-      "",
-      "_blank"
-    );
-
-  if (!printWindow) {
-    showToast(
-      "Popup print diblokir browser.",
-      "error"
-    );
-
-    return;
-  }
 
   printWindow.document.write(`
     <!DOCTYPE html>
@@ -2050,51 +2800,43 @@ function printSalesReport() {
 
       <meta charset="UTF-8">
 
-      <title>
-        Laporan Penjualan
-      </title>
+      <title>Laporan Penjualan</title>
 
       <style>
 
         body {
           font-family: Arial, sans-serif;
-          padding: 30px;
+          margin: 30px;
           color: #111;
         }
 
         h1 {
-          margin: 0 0 8px;
+          margin-bottom: 5px;
         }
 
         p {
-          margin: 0 0 20px;
-          color: #555;
+          margin-top: 0;
+          color: #666;
         }
 
         table {
           width: 100%;
           border-collapse: collapse;
+          margin-top: 20px;
         }
 
         th,
         td {
-          border: 1px solid #ddd;
+          border: 1px solid #ccc;
           padding: 8px;
           text-align: left;
         }
 
         th {
-          background: #f5f5f5;
+          background: #f3f3f3;
         }
 
-        .right {
-          text-align: right;
-        }
-
-        .summary {
-          margin-top: 20px;
-          font-size: 18px;
-          font-weight: bold;
+        td:nth-child(n+5) {
           text-align: right;
         }
 
@@ -2109,8 +2851,7 @@ function printSalesReport() {
       </h1>
 
       <p>
-        Dicetak:
-        ${new Date().toLocaleString("id-ID")}
+        Dicetak: ${new Date().toLocaleString("id-ID")}
       </p>
 
       <table>
@@ -2118,7 +2859,6 @@ function printSalesReport() {
         <thead>
 
           <tr>
-
             <th>No</th>
             <th>No. Transaksi</th>
             <th>Tanggal</th>
@@ -2126,164 +2866,39 @@ function printSalesReport() {
             <th>Total</th>
             <th>Pembayaran</th>
             <th>Kembalian</th>
-
           </tr>
 
         </thead>
 
         <tbody>
-
           ${rows}
-
         </tbody>
 
       </table>
 
-      <div class="summary">
-        Total Penjualan:
-        ${formatRupiah(total)}
-      </div>
+      <script>
+        window.onload = function() {
+          window.print();
+          window.close();
+        };
+      <\/script>
 
     </body>
 
     </html>
   `);
 
+
   printWindow.document.close();
 
-  printWindow.focus();
-
-  setTimeout(() => {
-    printWindow.print();
-    printWindow.close();
-  }, 300);
 }
 
 
 /* =========================================================
-   EVENT LISTENERS
+   SALES BUTTON INIT
    ========================================================= */
 
-function setupEvents() {
-
-  /* SEARCH MENU */
-
-  $("menuSearch")
-    ?.addEventListener(
-      "input",
-      renderMenus
-    );
-
-
-  /* CATEGORY */
-
-  $("categoryFilter")
-    ?.addEventListener(
-      "change",
-      renderMenus
-    );
-
-
-  /* REFRESH MENUS */
-
-  $("refreshMenusBtn")
-    ?.addEventListener(
-      "click",
-      loadMenus
-    );
-
-
-  /* CLEAR CART */
-
-  $("clearCartBtn")
-    ?.addEventListener(
-      "click",
-      clearCart
-    );
-
-
-  /* PAYMENT */
-
-  $("payment")
-    ?.addEventListener(
-      "input",
-      updateChange
-    );
-
-
-  /* SAVE SALE */
-
-  $("saveSaleBtn")
-    ?.addEventListener(
-      "click",
-      saveSale
-    );
-
-
-  /* SALES DATE */
-
-  $("salesDate")
-    ?.addEventListener(
-      "change",
-      () => {
-        currentSalesFilter =
-          $("salesDate").value
-            ? "date"
-            : "all";
-
-        renderSales();
-      }
-    );
-
-
-  /* TODAY SALES */
-
-  $("todaySalesBtn")
-    ?.addEventListener(
-      "click",
-      () => {
-        currentSalesFilter =
-          "today";
-
-        if ($("salesDate")) {
-          $("salesDate").value =
-            getToday();
-        }
-
-        renderSales();
-      }
-    );
-
-
-  /* ALL SALES */
-
-  $("allSalesBtn")
-    ?.addEventListener(
-      "click",
-      () => {
-        currentSalesFilter =
-          "all";
-
-        if ($("salesDate")) {
-          $("salesDate").value =
-            "";
-        }
-
-        renderSales();
-      }
-    );
-
-
-  /* REFRESH SALES */
-
-  $("refreshSalesBtn")
-    ?.addEventListener(
-      "click",
-      loadSales
-    );
-
-
-  /* DOWNLOAD CSV */
+function initSalesActions() {
 
   $("downloadSalesBtn")
     ?.addEventListener(
@@ -2292,183 +2907,75 @@ function setupEvents() {
     );
 
 
-  /* PRINT REPORT */
-
   $("printSalesBtn")
     ?.addEventListener(
       "click",
       printSalesReport
     );
 
-
-  /* RESET SALES */
-
-  $("resetSalesBtn")
-    ?.addEventListener(
-      "click",
-      () => {
-        openModal("resetModal");
-      }
-    );
+}
 
 
-  /* CONFIRM RESET */
+/* =========================================================
+   MODAL BACKDROP
+   ========================================================= */
 
-  $("confirmResetBtn")
-    ?.addEventListener(
-      "click",
-      resetSalesToday
-    );
-
-
-  /* CANCEL RESET */
-
-  $("cancelResetBtn")
-    ?.addEventListener(
-      "click",
-      () => {
-        closeModal("resetModal");
-      }
-    );
-
-
-  /* CLOSE RESET */
-
-  $("closeResetModal")
-    ?.addEventListener(
-      "click",
-      () => {
-        closeModal("resetModal");
-      }
-    );
-
-
-  /* ADD MENU */
-
-  $("addMenuBtn")
-    ?.addEventListener(
-      "click",
-      () => {
-        openMenuModal();
-      }
-    );
-
-
-  /* REFRESH MENU TABLE */
-
-  $("refreshMenuTableBtn")
-    ?.addEventListener(
-      "click",
-      loadMenus
-    );
-
-
-  /* MENU FORM */
-
-  $("menuForm")
-    ?.addEventListener(
-      "submit",
-      saveMenu
-    );
-
-
-  /* CANCEL MENU */
-
-  $("cancelMenuBtn")
-    ?.addEventListener(
-      "click",
-      () => {
-        closeModal("menuModal");
-      }
-    );
-
-
-  /* CLOSE MENU */
-
-  $("closeMenuModal")
-    ?.addEventListener(
-      "click",
-      () => {
-        closeModal("menuModal");
-      }
-    );
-
-
-  /* CLOSE RECEIPT */
-
-  $("closeReceiptModal")
-    ?.addEventListener(
-      "click",
-      () => {
-        closeModal("receiptModal");
-      }
-    );
-
-
-  /* CLOSE RECEIPT BUTTON */
-
-  $("closeReceiptBtn")
-    ?.addEventListener(
-      "click",
-      () => {
-        closeModal("receiptModal");
-      }
-    );
-
-
-  /* PRINT RECEIPT */
-
-  $("printReceiptBtn")
-    ?.addEventListener(
-      "click",
-      printReceipt
-    );
-
-
-  /* MODAL BACKDROP */
+function initModalBackdrop() {
 
   document
     .querySelectorAll(".modal")
-    .forEach(modal => {
+    .forEach((modal) => {
 
       modal.addEventListener(
         "click",
-        event => {
+        (event) => {
 
           if (
-            event.target === modal
+            event.target !== modal
           ) {
-            modal.classList.remove(
-              "show"
-            );
-
-            modal.setAttribute(
-              "aria-hidden",
-              "true"
-            );
+            return;
           }
+
+
+          modal.classList.remove(
+            "show"
+          );
+
+          modal.setAttribute(
+            "aria-hidden",
+            "true"
+          );
 
         }
       );
 
     });
 
+}
 
-  /* ESCAPE */
+
+/* =========================================================
+   ESC KEY
+   ========================================================= */
+
+function initEscapeKey() {
 
   document.addEventListener(
     "keydown",
-    event => {
+    (event) => {
 
-      if (event.key !== "Escape") {
+      if (
+        event.key !== "Escape"
+      ) {
         return;
       }
+
 
       document
         .querySelectorAll(
           ".modal.show"
         )
-        .forEach(modal => {
+        .forEach((modal) => {
 
           modal.classList.remove(
             "show"
@@ -2483,32 +2990,109 @@ function setupEvents() {
 
     }
   );
+
 }
 
 
 /* =========================================================
-   INITIALIZATION
+   CART INIT
+   ========================================================= */
+
+function initCart() {
+
+  $("payment")
+    ?.addEventListener(
+      "input",
+      updateChange
+    );
+
+
+  $("clearCartBtn")
+    ?.addEventListener(
+      "click",
+      clearCart
+    );
+
+
+  $("saveSaleBtn")
+    ?.addEventListener(
+      "click",
+      saveSale
+    );
+
+}
+
+
+/* =========================================================
+   INIT
    ========================================================= */
 
 async function init() {
 
-  setupNavigation();
+  console.log(
+    "KASIR APP START"
+  );
 
-  setupEvents();
+  console.log(
+    "API URL:",
+    API_URL
+  );
+
+
+  initNavigation();
+
+  initMenuSearch();
+
+  initCart();
+
+  initSalesFilter();
+
+  initMenuManagement();
+
+  initReset();
+
+  initReceipt();
+
+  initSalesActions();
+
+  initModalBackdrop();
+
+  initEscapeKey();
+
+
+  state.salesFilter =
+    "all";
+
 
   renderCart();
 
-  setConnectionStatus(
-    false,
-    "Memeriksa koneksi..."
-  );
 
-  await loadAllData();
+  await checkConnection();
+
+
+  try {
+
+    await loadAllData();
+
+  } catch (error) {
+
+    console.error(
+      "INIT ERROR:",
+      error
+    );
+
+    showToast(
+      "Gagal mengambil data dari server.",
+      "error"
+    );
+
+  }
+
 }
 
 
 /* =========================================================
-   START APP
+   START
    ========================================================= */
 
 document.addEventListener(
