@@ -2,22 +2,13 @@
    KASIR APP.JS
    DATABASE UTAMA: GOOGLE SHEETS
 
-   SHEET:
-   - MENU
-   - PENJUALAN
-   - DETAIL_PENJUALAN
-
-   FOKUS PENJUALAN:
-   - getSales      -> membaca SEMUA data PENJUALAN
-   - saveSale      -> menyimpan transaksi
-   - deleteAllSales -> menghapus SEMUA data PENJUALAN
-   - DOWNLOAD     -> mengambil data PENJUALAN
-   - STATISTIK    -> menghitung langsung dari PENJUALAN
-
-   CATATAN:
-   - Tidak memakai localStorage sebagai database.
-   - Tidak filter tanggal di browser.
-   - MENU tidak ikut terhapus saat reset PENJUALAN.
+   SISTEM:
+   - MENU              -> Google Sheets
+   - PENJUALAN         -> Sheet PENJUALAN
+   - STATISTIK         -> data Sheet PENJUALAN
+   - DOWNLOAD          -> data Sheet PENJUALAN
+   - SETEL ULANG       -> hapus seluruh data Sheet PENJUALAN
+   - TIDAK memakai localStorage
    ========================================================= */
 
 
@@ -39,9 +30,6 @@ const state = {
 
     cart: [],
 
-    /*
-     * Semua transaksi dari sheet PENJUALAN.
-     */
     todaySales: [],
 
     selectedCategory: "all",
@@ -66,7 +54,7 @@ const state = {
 
 
 /* =========================================================
-   DOM
+   DOM HELPER
    ========================================================= */
 
 function $(id) {
@@ -132,7 +120,7 @@ function toNumber(value) {
     }
 
     /*
-     * 10.000,50
+     * Rp 10.000,50
      */
 
     if (
@@ -161,8 +149,7 @@ function toNumber(value) {
     }
 
     /*
-     * Hilangkan Rp
-     * dan karakter lain.
+     * Hilangkan Rp dan karakter
      */
 
     text =
@@ -212,6 +199,164 @@ function formatNumber(value) {
         "id-ID"
     ).format(
         toNumber(value)
+    );
+
+}
+
+
+/* =========================================================
+   NOTIFICATION
+   ========================================================= */
+
+function showNotification(
+    message,
+    type = "success"
+) {
+
+    const text =
+        toSafeString(message);
+
+    if (!text) {
+        return;
+    }
+
+    /*
+     * Jika HTML mempunyai notification container,
+     * gunakan container tersebut.
+     */
+
+    let container =
+        $("notificationContainer");
+
+    /*
+     * Jika tidak ada, buat otomatis.
+     */
+
+    if (!container) {
+
+        container =
+            document.createElement(
+                "div"
+            );
+
+        container.id =
+            "notificationContainer";
+
+        container.style.position =
+            "fixed";
+
+        container.style.top =
+            "20px";
+
+        container.style.right =
+            "20px";
+
+        container.style.zIndex =
+            "99999";
+
+        container.style.display =
+            "flex";
+
+        container.style.flexDirection =
+            "column";
+
+        container.style.gap =
+            "10px";
+
+        container.style.maxWidth =
+            "calc(100vw - 40px)";
+
+        document.body.appendChild(
+            container
+        );
+
+    }
+
+    const notification =
+        document.createElement(
+            "div"
+        );
+
+    notification.className =
+        "app-notification " +
+        "app-notification-" +
+        type;
+
+    notification.textContent =
+        text;
+
+    notification.style.padding =
+        "12px 16px";
+
+    notification.style.borderRadius =
+        "10px";
+
+    notification.style.color =
+        "#fff";
+
+    notification.style.fontSize =
+        "14px";
+
+    notification.style.fontWeight =
+        "600";
+
+    notification.style.boxShadow =
+        "0 8px 24px rgba(0,0,0,.18)";
+
+    notification.style.background =
+        type === "error"
+            ? "#dc2626"
+            : type === "warning"
+                ? "#d97706"
+                : "#16a34a";
+
+    notification.style.opacity =
+        "0";
+
+    notification.style.transform =
+        "translateY(-8px)";
+
+    notification.style.transition =
+        "all .2s ease";
+
+    container.appendChild(
+        notification
+    );
+
+    requestAnimationFrame(
+        () => {
+
+            notification.style.opacity =
+                "1";
+
+            notification.style.transform =
+                "translateY(0)";
+
+        }
+    );
+
+    setTimeout(
+        () => {
+
+            notification.style.opacity =
+                "0";
+
+            notification.style.transform =
+                "translateY(-8px)";
+
+            setTimeout(
+                () => {
+
+                    notification.remove();
+
+                },
+                250
+            );
+
+        },
+        type === "error"
+            ? 4500
+            : 3000
     );
 
 }
@@ -519,7 +664,7 @@ function generateId(
 
 
 /* =========================================================
-   GENERATE NO TRANSAKSI
+   GENERATE TRANSACTION NUMBER
    ========================================================= */
 
 function generateTransactionNumber() {
@@ -657,25 +802,26 @@ async function googleRequest(
         const params =
             new URLSearchParams();
 
-        Object.entries(payload)
-            .forEach(
-                ([key, value]) => {
+        Object.entries(
+            payload
+        ).forEach(
+            ([key, value]) => {
 
-                    if (
-                        value !== undefined &&
-                        value !== null &&
-                        value !== ""
-                    ) {
+                if (
+                    value !== undefined &&
+                    value !== null &&
+                    value !== ""
+                ) {
 
-                        params.set(
-                            key,
-                            String(value)
-                        );
-
-                    }
+                    params.set(
+                        key,
+                        String(value)
+                    );
 
                 }
-            );
+
+            }
+        );
 
         const query =
             params.toString();
@@ -805,25 +951,12 @@ async function checkGoogleSheetsConnection() {
 
     try {
 
-        const result =
-            await googleRequest(
-                {
-                    action: "ping"
-                },
-                "GET"
-            );
-
-        if (
-            result &&
-            result.success === false
-        ) {
-
-            throw new Error(
-                result.message ||
-                "Ping gagal."
-            );
-
-        }
+        await googleRequest(
+            {
+                action: "ping"
+            },
+            "GET"
+        );
 
         setConnectionStatus(
             "online",
@@ -837,6 +970,7 @@ async function checkGoogleSheetsConnection() {
     catch (error) {
 
         console.error(
+            "PING ERROR:",
             error
         );
 
@@ -846,7 +980,8 @@ async function checkGoogleSheetsConnection() {
         );
 
         showNotification(
-            error.message,
+            error.message ||
+            "Google Sheets tidak tersambung.",
             "error"
         );
 
@@ -879,7 +1014,8 @@ async function loadMenusFromGoogleSheets() {
         const result =
             await googleRequest(
                 {
-                    action: "getMenus"
+                    action:
+                        "getMenus"
                 },
                 "GET"
             );
@@ -951,7 +1087,7 @@ async function loadMenusFromGoogleSheets() {
     catch (error) {
 
         console.error(
-            "Load menu:",
+            "LOAD MENU ERROR:",
             error
         );
 
@@ -1276,7 +1412,6 @@ function renderMenus() {
                     </div>
 
                     <div class="menu-card-add">
-
                         ${
                             quantity > 0
                                 ? formatNumber(
@@ -1284,7 +1419,6 @@ function renderMenus() {
                                 )
                                 : "+"
                         }
-
                     </div>
 
                 </div>
@@ -1673,7 +1807,8 @@ function renderCart() {
 
                     changeCartQuantity(
                         button.dataset.id,
-                        button.dataset.action === "plus"
+                        button.dataset.action ===
+                            "plus"
                             ? 1
                             : -1
                     );
@@ -1718,7 +1853,9 @@ function getPaymentAmount() {
         $("paymentAmount");
 
     return input
-        ? toNumber(input.value)
+        ? toNumber(
+            input.value
+        )
         : 0;
 
 }
@@ -2006,15 +2143,7 @@ async function processPayment() {
         state.lastCompletedSale =
             sale;
 
-        /*
-         * Ambil ulang langsung dari PENJUALAN.
-         */
-
         await loadTodaySalesFromGoogleSheets();
-
-        /*
-         * Kosongkan keranjang setelah berhasil.
-         */
 
         clearCart();
 
@@ -2037,14 +2166,9 @@ async function processPayment() {
     catch (error) {
 
         console.error(
-            "Pembayaran:",
+            "PEMBAYARAN ERROR:",
             error
         );
-
-        /*
-         * Jangan kosongkan keranjang
-         * apabila gagal.
-         */
 
         setConnectionStatus(
             "offline",
@@ -2163,9 +2287,9 @@ function normalizeSales(
             sale => {
 
                 /*
-                 * ARRAY / ROW
+                 * ROW SHEET
                  *
-                 * 0 ID_PENJUALAN
+                 * 0 ID
                  * 1 NO_TRANSAKSI
                  * 2 TANGGAL
                  * 3 TANGGAL_KEY
@@ -2368,14 +2492,18 @@ function normalizeSales(
 /* =========================================================
    LOAD PENJUALAN
    =========================================================
+
    PENTING:
 
-   HANYA MEMBACA SHEET PENJUALAN
-   MELALUI ACTION getSales.
+   Frontend TIDAK menentukan/filter tanggal.
 
-   Tidak mengirim tanggal.
-   Tidak melakukan filter tanggal.
-   Tidak membaca DETAIL_PENJUALAN.
+   Apps Script:
+       action = getSales
+
+   yang bertugas mengambil DATA PENJUALAN
+   dari sheet PENJUALAN.
+
+   Jadi statistik = isi yang dikirim Apps Script.
    ========================================================= */
 
 async function loadTodaySalesFromGoogleSheets() {
@@ -2403,30 +2531,14 @@ async function loadTodaySalesFromGoogleSheets() {
             );
 
         console.log(
-            "[PENJUALAN GOOGLE SHEETS]",
+            "[DATA SHEET PENJUALAN]",
             result
         );
 
-        if (
-            !result ||
-            result.success === false
-        ) {
-
-            throw new Error(
-                result?.message ||
-                "Gagal mengambil data PENJUALAN."
-            );
-
-        }
-
         const rawSales =
-            Array.isArray(
-                result.sales
-            )
-                ? result.sales
-                : extractSalesFromResponse(
-                    result
-                );
+            extractSalesFromResponse(
+                result
+            );
 
         state.todaySales =
             normalizeSales(
@@ -2458,7 +2570,7 @@ async function loadTodaySalesFromGoogleSheets() {
 
         setConnectionStatus(
             "offline",
-            "Gagal mengambil PENJUALAN"
+            "Gagal mengambil penjualan"
         );
 
         showNotification(
@@ -2483,16 +2595,6 @@ async function loadTodaySalesFromGoogleSheets() {
 
 /* =========================================================
    RENDER STATISTIK PENJUALAN
-   =========================================================
-   SUMBER DATA:
-
-   SHEET PENJUALAN
-
-   TRANSAKSI =
-   jumlah transaksi
-
-   TOTAL PENJUALAN =
-   jumlah semua kolom TOTAL
    ========================================================= */
 
 function renderSalesHistory() {
@@ -2502,6 +2604,12 @@ function renderSalesHistory() {
 
     const total =
         $("todaySalesTotal");
+
+    const list =
+        $("salesHistory");
+
+    const empty =
+        $("emptySales");
 
     const sales =
         Array.isArray(
@@ -2514,14 +2622,11 @@ function renderSalesHistory() {
      * JUMLAH TRANSAKSI
      */
 
-    const transactionCount =
-        sales.length;
-
     if (count) {
 
         count.textContent =
             formatNumber(
-                transactionCount
+                sales.length
             );
 
     }
@@ -2535,16 +2640,11 @@ function renderSalesHistory() {
             (
                 sum,
                 sale
-            ) => {
-
-                return (
-                    sum +
-                    toNumber(
-                        sale.total
-                    )
-                );
-
-            },
+            ) =>
+                sum +
+                toNumber(
+                    sale.total
+                ),
             0
         );
 
@@ -2557,13 +2657,86 @@ function renderSalesHistory() {
 
     }
 
+    /*
+     * Jika ada list riwayat,
+     * tampilkan transaksi.
+     */
+
+    if (list) {
+
+        list.innerHTML =
+            "";
+
+        sales.forEach(
+            sale => {
+
+                const item =
+                    document.createElement(
+                        "div"
+                    );
+
+                item.className =
+                    "sales-history-item";
+
+                item.innerHTML = `
+
+                    <div>
+
+                        <strong>
+                            ${escapeHtml(
+                                sale.transactionNumber ||
+                                sale.id ||
+                                "-"
+                            )}
+                        </strong>
+
+                        <div>
+                            ${formatDateTimeIndonesia(
+                                sale.date
+                            )}
+                        </div>
+
+                    </div>
+
+                    <strong>
+                        ${formatRupiah(
+                            sale.total
+                        )}
+                    </strong>
+
+                `;
+
+                list.appendChild(
+                    item
+                );
+
+            }
+        );
+
+    }
+
+    if (empty) {
+
+        empty.hidden =
+            sales.length !== 0;
+
+        empty.style.display =
+            sales.length === 0
+                ? ""
+                : "none";
+
+    }
+
 }
 
 
 /* =========================================================
    DOWNLOAD PENJUALAN
    =========================================================
-   MENGAMBIL LANGSUNG DARI SHEET PENJUALAN.
+
+   Ambil langsung dari Sheet PENJUALAN.
+
+   Tidak menggunakan state lama sebagai sumber download.
    ========================================================= */
 
 async function downloadTodaySales() {
@@ -2571,7 +2744,7 @@ async function downloadTodaySales() {
     try {
 
         showNotification(
-            "Mengambil data dari sheet PENJUALAN...",
+            "Mengambil data PENJUALAN dari Google Sheets...",
             "success"
         );
 
@@ -2589,25 +2762,14 @@ async function downloadTodaySales() {
             result
         );
 
-        if (
-            !result ||
-            result.success === false
-        ) {
-
-            throw new Error(
-                result?.message ||
-                "Gagal mengambil PENJUALAN."
+        const rawSales =
+            extractSalesFromResponse(
+                result
             );
-
-        }
 
         const sales =
             normalizeSales(
-                Array.isArray(
-                    result.sales
-                )
-                    ? result.sales
-                    : []
+                rawSales
             );
 
         state.todaySales =
@@ -2620,7 +2782,7 @@ async function downloadTodaySales() {
         ) {
 
             showNotification(
-                "Sheet PENJUALAN masih kosong.",
+                "Tidak ada data penjualan di sheet PENJUALAN.",
                 "warning"
             );
 
@@ -2702,7 +2864,9 @@ async function downloadTodaySales() {
                             )
                             .join(",")
                 )
-                .join("\r\n");
+                .join(
+                    "\r\n"
+                );
 
         const blob =
             new Blob(
@@ -2756,7 +2920,7 @@ async function downloadTodaySales() {
     catch (error) {
 
         console.error(
-            "DOWNLOAD PENJUALAN:",
+            "DOWNLOAD PENJUALAN ERROR:",
             error
         );
 
@@ -2828,7 +2992,7 @@ function openResetModal() {
     if (message) {
 
         message.textContent =
-            "";
+            "Semua data pada sheet PENJUALAN akan dihapus. MENU tidak akan dihapus.";
 
     }
 
@@ -2868,11 +3032,14 @@ function closeResetModal() {
 /* =========================================================
    RESET SEMUA PENJUALAN
    =========================================================
-   HANYA MENGHAPUS SHEET PENJUALAN.
+
+   Apps Script menerima:
+
+       action: deleteAllSales
+
+   dan menghapus seluruh DATA PENJUALAN.
 
    MENU TIDAK DISENTUH.
-
-   DETAIL_PENJUALAN TIDAK DISENTUH.
    ========================================================= */
 
 async function resetTodaySales() {
@@ -2885,14 +3052,30 @@ async function resetTodaySales() {
 
     }
 
-    const confirmed =
-        window.confirm(
-            "YAKIN? SEMUA DATA pada sheet PENJUALAN akan dihapus. MENU TIDAK AKAN TERHAPUS."
-        );
+    /*
+     * Jika fungsi dipanggil dari modal,
+     * jangan meminta confirm kedua kali.
+     */
 
-    if (!confirmed) {
+    const modal =
+        $("resetModal");
 
-        return;
+    const modalIsOpen =
+        modal &&
+        !modal.hidden;
+
+    if (!modalIsOpen) {
+
+        const confirmed =
+            window.confirm(
+                "YAKIN? Semua data pada sheet PENJUALAN akan dihapus. MENU dan harga tidak akan dihapus."
+            );
+
+        if (!confirmed) {
+
+            return;
+
+        }
 
     }
 
@@ -2905,7 +3088,7 @@ async function resetTodaySales() {
     if (message) {
 
         message.textContent =
-            "Menghapus data PENJUALAN...";
+            "Menghapus semua data PENJUALAN...";
 
     }
 
@@ -2913,8 +3096,14 @@ async function resetTodaySales() {
 
         setConnectionStatus(
             "loading",
-            "Menghapus PENJUALAN..."
+            "Menghapus data penjualan..."
         );
+
+        /*
+         * HANYA ACTION.
+         *
+         * Tidak mengirim dateKey.
+         */
 
         const result =
             await googleRequest({
@@ -2930,12 +3119,12 @@ async function resetTodaySales() {
         );
 
         if (
-            !result ||
+            result &&
             result.success === false
         ) {
 
             throw new Error(
-                result?.message ||
+                result.message ||
                 "Google Sheets menolak reset."
             );
 
@@ -2951,15 +3140,26 @@ async function resetTodaySales() {
         renderSalesHistory();
 
         /*
-         * Baca ulang dari PENJUALAN.
+         * Ambil ulang data dari Sheets.
          *
-         * Seharusnya menghasilkan:
-         *
-         * TRANSAKSI = 0
-         * TOTAL = Rp 0
+         * Jika berhasil dihapus,
+         * harus menghasilkan 0 transaksi.
          */
 
         await loadTodaySalesFromGoogleSheets();
+
+        /*
+         * Pastikan tampilan benar-benar
+         * menunjukkan hasil Sheet.
+         */
+
+        if (
+            state.todaySales.length === 0
+        ) {
+
+            renderSalesHistory();
+
+        }
 
         closeResetModal();
 
@@ -2969,7 +3169,7 @@ async function resetTodaySales() {
         );
 
         showNotification(
-            "Semua data PENJUALAN berhasil dihapus.",
+            "Semua data penjualan berhasil dihapus dari sheet PENJUALAN.",
             "success"
         );
 
@@ -2978,13 +3178,13 @@ async function resetTodaySales() {
     catch (error) {
 
         console.error(
-            "RESET PENJUALAN:",
+            "RESET PENJUALAN ERROR:",
             error
         );
 
         setConnectionStatus(
             "offline",
-            "Reset PENJUALAN gagal"
+            "Reset penjualan gagal"
         );
 
         if (message) {
@@ -3090,9 +3290,8 @@ function resetMenuForm() {
 
     if ($("menuFormMessage")) {
 
-        $("menuFormMessage")
-            .textContent =
-                "";
+        $("menuFormMessage").textContent =
+            "";
 
     }
 
@@ -3288,6 +3487,7 @@ async function saveMenu(event) {
     catch (error) {
 
         console.error(
+            "SAVE MENU ERROR:",
             error
         );
 
@@ -3374,6 +3574,7 @@ async function deleteMenu(menuId) {
     catch (error) {
 
         console.error(
+            "DELETE MENU ERROR:",
             error
         );
 
@@ -3655,7 +3856,7 @@ function closePaymentSuccessModal() {
 
 
 /* =========================================================
-   PRINT
+   PRINT RECEIPT
    ========================================================= */
 
 function printReceipt(sale) {
@@ -3763,9 +3964,11 @@ function printReceipt(sale) {
                                 </span>
 
                                 <strong>
+
                                     ${formatRupiah(
                                         item.subtotal
                                     )}
+
                                 </strong>
 
                             </div>
@@ -4193,19 +4396,22 @@ function renderCurrentDate() {
 
 
 /* =========================================================
-   REFRESH
+   REFRESH SEMUA DATA
    ========================================================= */
 
 async function refreshAllData() {
 
     /*
-     * MENU
+     * MENU tetap jalan seperti sistem lama.
      */
+
     await loadMenusFromGoogleSheets();
 
     /*
-     * PENJUALAN
+     * PENJUALAN mengambil langsung dari
+     * sheet PENJUALAN melalui getSales.
      */
+
     await loadTodaySalesFromGoogleSheets();
 
 }
@@ -4275,6 +4481,13 @@ async function initializeApp() {
         await checkGoogleSheetsConnection();
 
     if (!connected) {
+
+        /*
+         * Jangan hentikan UI.
+         * Tombol tetap tersedia.
+         */
+
+        initializeAutoRefresh();
 
         return;
 
