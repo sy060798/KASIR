@@ -1,969 +1,3558 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kasir</title>
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+  <style>
+    * {
+      box-sizing: border-box;
+    }
 
-    <meta
-        name="theme-color"
-        content="#1565c0"
-    >
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --warning: #d97706;
+      --dark: #111827;
+      --gray: #6b7280;
+      --light: #f3f4f6;
+      --border: #e5e7eb;
+      --white: #ffffff;
+    }
 
-    <meta
-        name="description"
-        content="Aplikasi kasir menu dan penjualan"
-    >
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f5f7fb;
+      color: var(--dark);
+    }
 
-    <title>Kasir</title>
+    button,
+    input,
+    select {
+      font: inherit;
+    }
 
-    <link
-        rel="stylesheet"
-        href="style.css"
-    >
+    button {
+      cursor: pointer;
+    }
+
+    .app {
+      min-height: 100vh;
+    }
+
+    /* =========================
+       HEADER
+       ========================= */
+
+    .header {
+      background: var(--dark);
+      color: white;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .connection {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13px;
+      color: #d1d5db;
+    }
+
+    .connection-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #f59e0b;
+    }
+
+    .connection-dot.online {
+      background: #22c55e;
+    }
+
+    .connection-dot.offline {
+      background: #ef4444;
+    }
+
+    /* =========================
+       NAV
+       ========================= */
+
+    .nav {
+      background: white;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 5px;
+      padding: 10px 15px;
+      overflow-x: auto;
+    }
+
+    .nav button {
+      border: 0;
+      background: transparent;
+      padding: 10px 16px;
+      border-radius: 8px;
+      color: var(--gray);
+      white-space: nowrap;
+    }
+
+    .nav button.active {
+      background: #eff6ff;
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    /* =========================
+       CONTENT
+       ========================= */
+
+    .container {
+      max-width: 1400px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    .page-title {
+      margin: 0 0 5px;
+      font-size: 24px;
+    }
+
+    .page-subtitle {
+      color: var(--gray);
+      margin: 0 0 20px;
+      font-size: 14px;
+    }
+
+    /* =========================
+       CARDS
+       ========================= */
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+    }
+
+    .stat-label {
+      color: var(--gray);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      margin-bottom: 20px;
+    }
+
+    /* =========================
+       POS
+       ========================= */
+
+    .pos-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(330px, 0.8fr);
+      gap: 20px;
+    }
+
+    .menu-toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+
+    .menu-toolbar input,
+    .menu-toolbar select {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 11px 12px;
+      background: white;
+    }
+
+    .search {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 12px;
+    }
+
+    .menu-item {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      background: white;
+      transition: 0.15s;
+    }
+
+    .menu-item:hover {
+      border-color: var(--primary);
+      box-shadow: 0 3px 12px rgba(37, 99, 235, 0.08);
+    }
+
+    .menu-name {
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .menu-category {
+      color: var(--gray);
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+
+    .menu-price {
+      color: var(--primary);
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .cart {
+      position: sticky;
+      top: 100px;
+      height: fit-content;
+    }
+
+    .cart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .cart-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .cart-items {
+      max-height: 390px;
+      overflow-y: auto;
+      margin-bottom: 15px;
+    }
+
+    .cart-empty {
+      text-align: center;
+      padding: 35px 10px;
+      color: var(--gray);
+      font-size: 14px;
+    }
+
+    .cart-row {
+      border-bottom: 1px solid var(--border);
+      padding: 12px 0;
+    }
+
+    .cart-row-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .cart-name {
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .cart-price {
+      color: var(--gray);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .qty-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .qty-control button {
+      width: 30px;
+      height: 30px;
+      border: 1px solid var(--border);
+      background: white;
+      border-radius: 6px;
+    }
+
+    .qty {
+      min-width: 25px;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .cart-total {
+      display: flex;
+      justify-content: space-between;
+      padding: 15px 0;
+      border-top: 1px solid var(--border);
+      font-size: 19px;
+      font-weight: 700;
+    }
+
+    .payment-box {
+      margin-top: 15px;
+    }
+
+    .payment-box label {
+      display: block;
+      font-size: 13px;
+      color: var(--gray);
+      margin-bottom: 6px;
+    }
+
+    .payment-box input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 17px;
+    }
+
+    .change {
+      display: flex;
+      justify-content: space-between;
+      margin: 12px 0;
+      font-weight: 700;
+    }
+
+    /* =========================
+       BUTTON
+       ========================= */
+
+    .btn {
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-weight: 600;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: white;
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-warning {
+      background: var(--warning);
+      color: white;
+    }
+
+    .btn-light {
+      background: var(--light);
+      color: var(--dark);
+    }
+
+    .btn-block {
+      width: 100%;
+    }
+
+    .btn-small {
+      padding: 7px 10px;
+      font-size: 12px;
+    }
+
+    /* =========================
+       TABLE
+       ========================= */
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 700px;
+    }
+
+    th,
+    td {
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      font-size: 13px;
+    }
+
+    th {
+      background: #f9fafb;
+      font-weight: 700;
+    }
+
+    .text-right {
+      text-align: right;
+    }
+
+    .empty-table {
+      text-align: center;
+      padding: 35px;
+      color: var(--gray);
+    }
+
+    /* =========================
+       FORM
+       ========================= */
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group.full {
+      grid-column: 1 / -1;
+    }
+
+    .form-group label {
+      font-size: 13px;
+      color: var(--gray);
+    }
+
+    .form-group input,
+    .form-group select {
+      padding: 11px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      outline: none;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 15px;
+    }
+
+    /* =========================
+       MODAL
+       ========================= */
+
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 500;
+      padding: 20px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.show {
+      display: flex;
+    }
+
+    .modal-content {
+      width: 100%;
+      max-width: 550px;
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .modal-title {
+      font-size: 19px;
+      font-weight: 700;
+    }
+
+    .close {
+      border: 0;
+      background: transparent;
+      font-size: 25px;
+      color: var(--gray);
+    }
+
+    /* =========================
+       TOAST
+       ========================= */
+
+    .toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      background: var(--dark);
+      color: white;
+      padding: 13px 17px;
+      border-radius: 8px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(15px);
+      transition: 0.2s;
+      z-index: 1000;
+      max-width: 350px;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast.success {
+      background: var(--success);
+    }
+
+    .toast.error {
+      background: var(--danger);
+    }
+
+    /* =========================
+       LOADING
+       ========================= */
+
+    .loading {
+      position: fixed;
+      inset: 0;
+      background: rgba(255,255,255,0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 900;
+    }
+
+    .loading.show {
+      display: flex;
+    }
+
+    .loading-box {
+      background: white;
+      padding: 20px 25px;
+      border-radius: 10px;
+      box-shadow: 0 5px 25px rgba(0,0,0,0.15);
+      font-weight: 600;
+    }
+
+    /* =========================
+       RESPONSIVE
+       ========================= */
+
+    @media (max-width: 900px) {
+      .pos-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .cart {
+        position: static;
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 12px;
+      }
+
+      .header {
+        padding: 13px;
+      }
+
+      .brand {
+        font-size: 18px;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .form-group.full {
+        grid-column: auto;
+      }
+
+      .menu-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .menu-item {
+        padding: 11px;
+      }
+    }
+  </style>
 </head>
 
 <body>
 
-    <div
-        id="app"
-        class="app"
-    >
-
-        <!-- ==================================================
-             HEADER
-        =================================================== -->
-
-        <header class="app-header">
-
-            <div class="header-left">
-
-                <div class="store-logo">
-                    K
-                </div>
-
-                <div>
-
-                    <h1 id="storeName">
-                        KASIR
-                    </h1>
-
-                    <p id="currentDate">
-                        -
-                    </p>
-
-                </div>
-
-            </div>
-
-            <div class="header-right">
-
-                <div class="connection-status">
-
-                    <span
-                        id="connectionIndicator"
-                        class="status-dot offline"
-                    ></span>
-
-                    <span id="connectionText">
-                        Menghubungkan...
-                    </span>
-
-                </div>
-
-            </div>
-
-        </header>
-
-
-        <!-- ==================================================
-             MAIN KASIR
-        =================================================== -->
-
-        <main class="cashier-layout">
-
-
-            <!-- ==================================================
-                 KIRI
-                 PESANAN / KERANJANG
-            =================================================== -->
-
-            <section class="order-section">
-
-                <div class="section-header">
-
-                    <div>
-
-                        <h2>
-                            PESANAN
-                        </h2>
-
-                        <p>
-                            <span id="cartItemCount">
-                                0
-                            </span>
-                            item dipilih
-                        </p>
-
-                    </div>
-
-                    <button
-                        type="button"
-                        id="clearCartButton"
-                        class="button danger-outline"
-                    >
-                        KOSONGKAN
-                    </button>
-
-                </div>
-
-
-                <!-- LIST PESANAN -->
-                <div
-                    id="cartList"
-                    class="cart-list"
-                    aria-live="polite"
-                ></div>
-
-
-                <!-- KERANJANG KOSONG -->
-
-                <div
-                    id="emptyCart"
-                    class="empty-state"
-                >
-
-                    <div class="empty-icon">
-                        +
-                    </div>
-
-                    <h3>
-                        BELUM ADA PESANAN
-                    </h3>
-
-                    <p>
-                        Pilih menu dari sebelah kanan.
-                    </p>
-
-                </div>
-
-
-                <!-- ==================================================
-                     PEMBAYARAN
-                =================================================== -->
-
-                <div class="payment-box">
-
-                    <div class="summary-row total-row">
-
-                        <span>
-                            TOTAL
-                        </span>
-
-                        <strong id="cartTotal">
-                            Rp0
-                        </strong>
-
-                    </div>
-
-
-                    <div class="payment-field">
-
-                        <label for="paymentAmount">
-                            UANG BAYAR
-                        </label>
-
-                        <input
-                            type="number"
-                            id="paymentAmount"
-                            min="0"
-                            step="100"
-                            inputmode="numeric"
-                            placeholder="Masukkan nominal pembayaran"
-                        >
-
-                    </div>
-
-
-                    <div class="summary-row change-row">
-
-                        <span>
-                            KEMBALIAN
-                        </span>
-
-                        <strong id="changeAmount">
-                            Rp0
-                        </strong>
-
-                    </div>
-
-
-                    <div
-                        id="paymentMessage"
-                        class="payment-message"
-                        role="status"
-                        aria-live="polite"
-                    ></div>
-
-
-                    <!-- BAYAR SAJA.
-                         PRINT TERPISAH SETELAH BAYAR. -->
-
-                    <button
-                        type="button"
-                        id="payButton"
-                        class="button primary pay-button"
-                        disabled
-                    >
-                        BAYAR
-                    </button>
-
-                </div>
-
-            </section>
-
-
-            <!-- ==================================================
-                 KANAN
-                 DAFTAR MENU
-            =================================================== -->
-
-            <section class="menu-section">
-
-                <div class="section-header">
-
-                    <div>
-
-                        <h2>
-                            MENU
-                        </h2>
-
-                        <p>
-                            Pilih menu untuk memasukkan pesanan
-                        </p>
-
-                    </div>
-
-                    <button
-                        type="button"
-                        id="manageMenuButton"
-                        class="button orange"
-                    >
-                        KELOLA MENU
-                    </button>
-
-                </div>
-
-
-                <!-- ==================================================
-                     PENCARIAN
-                =================================================== -->
-
-                <div class="search-box">
-
-                    <label for="menuSearch">
-                        CARI MENU
-                    </label>
-
-                    <input
-                        type="search"
-                        id="menuSearch"
-                        placeholder="Ketik nama menu..."
-                        autocomplete="off"
-                    >
-
-                </div>
-
-
-                <!-- ==================================================
-                     FILTER KATEGORI
-                =================================================== -->
-
-                <div
-                    id="categoryButtons"
-                    class="category-filter"
-                >
-
-                    <button
-                        type="button"
-                        class="category-button active"
-                        data-category="all"
-                    >
-                        SEMUA
-                    </button>
-
-                </div>
-
-
-                <!-- ==================================================
-                     DAFTAR MENU
-                     DATA DIISI DARI app.js
-                     TIDAK ADA DATA DUMMY
-                =================================================== -->
-
-                <div
-                    id="menuList"
-                    class="menu-list"
-                    aria-live="polite"
-                ></div>
-
-
-                <!-- MENU KOSONG -->
-
-                <div
-                    id="emptyMenu"
-                    class="empty-state"
-                    hidden
-                >
-
-                    <div class="empty-icon">
-                        +
-                    </div>
-
-                    <h3>
-                        BELUM ADA MENU
-                    </h3>
-
-                    <p>
-                        Tambahkan nama menu dan harga terlebih dahulu.
-                    </p>
-
-                    <button
-                        type="button"
-                        id="addMenuFromEmpty"
-                        class="button orange"
-                    >
-                        + TAMBAH MENU
-                    </button>
-
-                </div>
-
-            </section>
-
-        </main>
-
-
-        <!-- ==================================================
-             PENJUALAN HARI INI
-        =================================================== -->
-
-        <section class="sales-section">
-
-            <div class="sales-header">
-
-                <div>
-
-                    <h2>
-                        PENJUALAN HARI INI
-                    </h2>
-
-                    <p id="salesDate">
-                        -
-                    </p>
-
-                </div>
-
-
-                <div class="sales-summary">
-
-                    <div class="sales-stat">
-
-                        <span>
-                            TRANSAKSI
-                        </span>
-
-                        <strong id="todayTransactionCount">
-                            0
-                        </strong>
-
-                    </div>
-
-
-                    <div class="sales-stat">
-
-                        <span>
-                            TOTAL PENJUALAN
-                        </span>
-
-                        <strong id="todaySalesTotal">
-                            Rp0
-                        </strong>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- ==================================================
-                 TOMBOL LAPORAN
-            =================================================== -->
-
-            <div class="sales-actions">
-
-                <button
-                    type="button"
-                    id="downloadTodayButton"
-                    class="button primary"
-                >
-                    DOWNLOAD PENJUALAN HARI INI
-                </button>
-
-
-                <button
-                    type="button"
-                    id="resetTodayButton"
-                    class="button danger"
-                >
-                    SETEL ULANG
-                </button>
-
-            </div>
-
-
-          
-            </div>
-
+<div class="app">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="brand">KASIR</div>
+
+    <div class="connection">
+      <span id="connectionDot" class="connection-dot"></span>
+      <span id="connectionText">Memeriksa koneksi...</span>
     </div>
+  </header>
 
+  <!-- NAV -->
+  <nav class="nav">
+    <button class="nav-btn active" data-page="kasir">
+      Kasir
+    </button>
 
-    <!-- ======================================================
-         MODAL KELOLA MENU
-    ======================================================= -->
+    <button class="nav-btn" data-page="penjualan">
+      Penjualan
+    </button>
 
-    <div
-        id="menuModal"
-        class="modal"
-        hidden
-        aria-hidden="true"
-    >
+    <button class="nav-btn" data-page="menu">
+      Menu
+    </button>
+  </nav>
 
-        <div
-            id="menuModalOverlay"
-            class="modal-overlay"
-        ></div>
+  <main class="container">
 
+    <!-- =========================
+         KASIR
+         ========================= -->
 
-        <div
-            class="modal-content"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="menuModalTitle"
-        >
+    <section id="page-kasir" class="page active">
 
-            <div class="modal-header">
+      <h1 class="page-title">Kasir</h1>
+      <p class="page-subtitle">
+        Pilih menu, masukkan pembayaran, lalu simpan transaksi.
+      </p>
 
-                <div>
+      <div class="pos-grid">
 
-                    <h2 id="menuModalTitle">
-                        KELOLA MENU
-                    </h2>
+        <!-- MENU -->
+        <div>
 
-                    <p>
-                        Tambah, edit, atau hapus menu.
-                    </p>
+          <div class="card">
 
-                </div>
+            <div class="menu-toolbar">
 
+              <input
+                id="menuSearch"
+                class="search"
+                type="search"
+                placeholder="Cari menu..."
+              >
 
-                <button
-                    type="button"
-                    id="closeMenuModal"
-                    class="close-button"
-                    aria-label="Tutup"
-                >
-                    ×
-                </button>
+              <select id="categoryFilter">
+                <option value="">Semua kategori</option>
+              </select>
 
-            </div>
-
-
-            <!-- ==================================================
-                 FORM TAMBAH / EDIT MENU
-            =================================================== -->
-
-            <form id="menuForm">
-
-                <input
-                    type="hidden"
-                    id="menuId"
-                >
-
-
-                <div class="form-group">
-
-                    <label for="menuName">
-                        NAMA MENU
-                    </label>
-
-                    <input
-                        type="text"
-                        id="menuName"
-                        maxlength="100"
-                        required
-                        autocomplete="off"
-                        placeholder="Masukkan nama menu"
-                    >
-
-                </div>
-
-
-                <div class="form-group">
-
-                    <label for="menuCategory">
-                        KATEGORI
-                    </label>
-
-                    <input
-                        type="text"
-                        id="menuCategory"
-                        maxlength="50"
-                        autocomplete="off"
-                        placeholder="Contoh: Makanan / Minuman"
-                    >
-
-                </div>
-
-
-                <div class="form-group">
-
-                    <label for="menuPrice">
-                        HARGA
-                    </label>
-
-                    <input
-                        type="number"
-                        id="menuPrice"
-                        min="0"
-                        step="1"
-                        inputmode="numeric"
-                        required
-                        placeholder="Masukkan harga"
-                    >
-
-                </div>
-
-
-                <div
-                    id="menuFormMessage"
-                    class="form-message"
-                    role="alert"
-                    aria-live="polite"
-                ></div>
-
-
-                <div class="modal-actions">
-
-                    <button
-                        type="button"
-                        id="cancelMenuForm"
-                        class="button secondary"
-                    >
-                        BATAL
-                    </button>
-
-
-                    <button
-                        type="submit"
-                        class="button primary"
-                    >
-                        SIMPAN MENU
-                    </button>
-
-                </div>
-
-            </form>
-
-
-            <!-- ==================================================
-                 DAFTAR MENU UNTUK EDIT / HAPUS
-            =================================================== -->
-
-            <div class="managed-menu-section">
-
-                <div class="managed-menu-header">
-
-                    <h3>
-                        DAFTAR MENU
-                    </h3>
-
-
-                    <button
-                        type="button"
-                        id="newMenuButton"
-                        class="button orange small"
-                    >
-                        + MENU BARU
-                    </button>
-
-                </div>
-
-
-                <div
-                    id="managedMenuList"
-                    class="managed-menu-list"
-                ></div>
-
-
-                <div
-                    id="emptyManagedMenu"
-                    class="empty-state"
-                >
-
-                    <p>
-                        Belum ada menu tersimpan.
-                    </p>
-
-                </div>
+              <button
+                id="refreshMenusBtn"
+                class="btn btn-light"
+                type="button"
+              >
+                Refresh
+              </button>
 
             </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- ======================================================
-         MODAL KONFIRMASI SETEL ULANG
-    ======================================================= -->
-
-    <div
-        id="resetModal"
-        class="modal"
-        hidden
-        aria-hidden="true"
-    >
-
-        <div
-            id="resetModalOverlay"
-            class="modal-overlay"
-        ></div>
-
-
-        <div
-            class="modal-content confirmation-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="resetModalTitle"
-        >
-
-            <div class="modal-header">
-
-                <div>
-
-                    <h2 id="resetModalTitle">
-                        SETEL ULANG PENJUALAN
-                    </h2>
-
-                </div>
-
-
-                <button
-                    type="button"
-                    id="closeResetModal"
-                    class="close-button"
-                    aria-label="Tutup"
-                >
-                    ×
-                </button>
-
-            </div>
-
-
-            <div class="confirmation-content">
-
-                <p>
-                    Semua <strong>penjualan hari ini</strong>
-                    akan dihapus dari Google Sheets dan aplikasi.
-                </p>
-
-                <p>
-                    <strong>MENU DAN HARGA TIDAK AKAN DIHAPUS.</strong>
-                </p>
-
-                <p class="warning-text">
-                    Penjualan hari ini yang dihapus tidak dapat dikembalikan.
-                </p>
-
-            </div>
-
 
             <div
-                id="resetMessage"
-                class="form-message"
-                role="alert"
-                aria-live="polite"
+              id="menuGrid"
+              class="menu-grid"
             ></div>
 
-
-            <div class="modal-actions">
-
-                <button
-                    type="button"
-                    id="cancelReset"
-                    class="button secondary"
-                >
-                    BATAL
-                </button>
-
-
-                <button
-                    type="button"
-                    id="confirmReset"
-                    class="button danger"
-                >
-                    HAPUS PENJUALAN HARI INI
-                </button>
-
-            </div>
+          </div>
 
         </div>
 
-    </div>
+        <!-- CART -->
+        <div class="card cart">
+
+          <div class="cart-header">
+            <div class="cart-title">
+              Keranjang
+            </div>
+
+            <button
+              id="clearCartBtn"
+              class="btn btn-light btn-small"
+              type="button"
+            >
+              Kosongkan
+            </button>
+          </div>
+
+          <div
+            id="cartItems"
+            class="cart-items"
+          ></div>
+
+          <div class="cart-total">
+            <span>Total</span>
+            <span id="cartTotal">Rp0</span>
+          </div>
+
+          <div class="payment-box">
+
+            <label for="payment">
+              Pembayaran
+            </label>
+
+            <input
+              id="payment"
+              type="number"
+              min="0"
+              step="1"
+              placeholder="0"
+            >
+
+          </div>
+
+          <div class="change">
+            <span>Kembalian</span>
+            <span id="changeAmount">Rp0</span>
+          </div>
+
+          <button
+            id="saveSaleBtn"
+            class="btn btn-success btn-block"
+            type="button"
+          >
+            Simpan Transaksi
+          </button>
+
+        </div>
+
+      </div>
+
+    </section>
 
 
-    <!-- ======================================================
-         MODAL PEMBAYARAN BERHASIL
-    ======================================================= -->
+    <!-- =========================
+         PENJUALAN
+         ========================= -->
 
-    <div
-        id="paymentSuccessModal"
-        class="modal"
-        hidden
-        aria-hidden="true"
-    >
+    <section id="page-penjualan" class="page">
+
+      <h1 class="page-title">
+        Penjualan
+      </h1>
+
+      <p class="page-subtitle">
+        Riwayat seluruh transaksi dari sheet PENJUALAN.
+      </p>
+
+      <div class="stats">
+
+        <div class="stat-card">
+          <div class="stat-label">
+            Total Transaksi
+          </div>
+
+          <div
+            id="totalTransactions"
+            class="stat-value"
+          >
+            0
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">
+            Total Penjualan
+          </div>
+
+          <div
+            id="totalSales"
+            class="stat-value"
+          >
+            Rp0
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-label">
+            Rata-rata Transaksi
+          </div>
+
+          <div
+            id="averageSales"
+            class="stat-value"
+          >
+            Rp0
+          </div>
+        </div>
+
+      </div>
+
+      <div class="card">
 
         <div
-            id="paymentSuccessOverlay"
-            class="modal-overlay"
-        ></div>
-
-
-        <div
-            class="modal-content confirmation-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="paymentSuccessTitle"
+          style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:10px;
+            margin-bottom:15px;
+            flex-wrap:wrap;
+          "
         >
 
-            <div class="modal-header">
+          <strong>
+            Riwayat Transaksi
+          </strong>
 
-                <div>
+          <div style="display:flex; gap:8px;">
 
-                    <h2 id="paymentSuccessTitle">
-                        PEMBAYARAN SUKSES
-                    </h2>
+            <button
+              id="refreshSalesBtn"
+              class="btn btn-light"
+              type="button"
+            >
+              Refresh
+            </button>
 
-                    <p>
-                        Transaksi sudah tercatat.
-                    </p>
+            <button
+              id="resetSalesBtn"
+              class="btn btn-danger"
+              type="button"
+            >
+              Setel Ulang
+            </button>
 
-                </div>
-
-            </div>
-
-
-            <div class="receipt-summary">
-
-                <div class="summary-row">
-
-                    <span>
-                        NO. TRANSAKSI
-                    </span>
-
-                    <strong id="successTransactionNumber">
-                        -
-                    </strong>
-
-                </div>
-
-
-                <div class="summary-row">
-
-                    <span>
-                        TOTAL
-                    </span>
-
-                    <strong id="successTotal">
-                        Rp0
-                    </strong>
-
-                </div>
-
-
-                <div class="summary-row">
-
-                    <span>
-                        BAYAR
-                    </span>
-
-                    <strong id="successPayment">
-                        Rp0
-                    </strong>
-
-                </div>
-
-
-                <div class="summary-row">
-
-                    <span>
-                        KEMBALIAN
-                    </span>
-
-                    <strong id="successChange">
-                        Rp0
-                    </strong>
-
-                </div>
-
-            </div>
-
-
-            <!-- PRINT TERPISAH DARI BAYAR -->
-
-            <div class="modal-actions vertical-actions">
-
-                <button
-                    type="button"
-                    id="printReceiptButton"
-                    class="button primary large"
-                >
-                    PRINT STRUK
-                </button>
-
-
-                <button
-                    type="button"
-                    id="finishWithoutPrintButton"
-                    class="button secondary large"
-                >
-                    SELESAI / TIDAK PRINT
-                </button>
-
-            </div>
+          </div>
 
         </div>
 
-    </div>
+        <div class="table-wrap">
+
+          <table>
+
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>No. Transaksi</th>
+                <th>Tanggal</th>
+                <th>Item</th>
+                <th class="text-right">
+                  Total
+                </th>
+                <th class="text-right">
+                  Pembayaran
+                </th>
+                <th class="text-right">
+                  Kembalian
+                </th>
+              </tr>
+            </thead>
+
+            <tbody id="salesTableBody"></tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+    </section>
 
 
-    <!-- ======================================================
-         MODAL DETAIL TRANSAKSI
-    ======================================================= -->
+    <!-- =========================
+         MENU
+         ========================= -->
 
-    <div
-        id="saleDetailModal"
-        class="modal"
-        hidden
-        aria-hidden="true"
-    >
+    <section id="page-menu" class="page">
+
+      <h1 class="page-title">
+        Menu
+      </h1>
+
+      <p class="page-subtitle">
+        Kelola daftar menu yang digunakan pada kasir.
+      </p>
+
+      <div class="card">
 
         <div
-            id="saleDetailOverlay"
-            class="modal-overlay"
-        ></div>
-
-
-        <div
-            class="modal-content"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="saleDetailTitle"
+          style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:10px;
+            margin-bottom:15px;
+            flex-wrap:wrap;
+          "
         >
 
-            <div class="modal-header">
+          <strong>
+            Daftar Menu
+          </strong>
 
-                <div>
-
-                    <h2 id="saleDetailTitle">
-                        DETAIL TRANSAKSI
-                    </h2>
-
-                    <p id="saleDetailTransactionNumber">
-                        -
-                    </p>
-
-                </div>
-
-
-                <button
-                    type="button"
-                    id="closeSaleDetail"
-                    class="close-button"
-                    aria-label="Tutup"
-                >
-                    ×
-                </button>
-
-            </div>
-
-
-            <div
-                id="saleDetailContent"
-                class="sale-detail-content"
-            ></div>
-
-
-            <div class="modal-actions">
-
-                <button
-                    type="button"
-                    id="printDetailReceipt"
-                    class="button primary"
-                >
-                    PRINT STRUK
-                </button>
-
-
-                <button
-                    type="button"
-                    id="closeSaleDetailButton"
-                    class="button secondary"
-                >
-                    TUTUP
-                </button>
-
-            </div>
+          <button
+            id="addMenuBtn"
+            class="btn btn-primary"
+            type="button"
+          >
+            + Tambah Menu
+          </button>
 
         </div>
 
+        <div class="table-wrap">
+
+          <table>
+
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>Nama</th>
+                <th>Kategori</th>
+                <th class="text-right">
+                  Harga
+                </th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+
+            <tbody id="menuTableBody"></tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+</div>
+
+
+<!-- =========================
+     MODAL MENU
+     ========================= -->
+
+<div
+  id="menuModal"
+  class="modal"
+>
+
+  <div class="modal-content">
+
+    <div class="modal-header">
+
+      <div
+        id="menuModalTitle"
+        class="modal-title"
+      >
+        Tambah Menu
+      </div>
+
+      <button
+        id="closeMenuModal"
+        class="close"
+        type="button"
+      >
+        ×
+      </button>
+
     </div>
 
+    <form id="menuForm">
 
-    <!-- ======================================================
-         NOTIFIKASI
-    ======================================================= -->
+      <input
+        id="menuId"
+        type="hidden"
+      >
 
-    <div
-        id="notification"
-        class="notification"
-        role="status"
-        aria-live="polite"
-        hidden
-    ></div>
+      <div class="form-grid">
+
+        <div class="form-group full">
+
+          <label for="menuName">
+            Nama Menu
+          </label>
+
+          <input
+            id="menuName"
+            type="text"
+            required
+            autocomplete="off"
+          >
+
+        </div>
+
+        <div class="form-group">
+
+          <label for="menuCategory">
+            Kategori
+          </label>
+
+          <input
+            id="menuCategory"
+            type="text"
+            autocomplete="off"
+          >
+
+        </div>
+
+        <div class="form-group">
+
+          <label for="menuPrice">
+            Harga
+          </label>
+
+          <input
+            id="menuPrice"
+            type="number"
+            min="0"
+            step="1"
+            required
+          >
+
+        </div>
+
+      </div>
+
+      <div class="form-actions">
+
+        <button
+          id="cancelMenuBtn"
+          class="btn btn-light"
+          type="button"
+        >
+          Batal
+        </button>
+
+        <button
+          id="saveMenuBtn"
+          class="btn btn-primary"
+          type="submit"
+        >
+          Simpan
+        </button>
+
+      </div>
+
+    </form>
+
+  </div>
+
+</div>
 
 
-    <!-- ======================================================
-         PRINT CONTAINER
-         Dipakai app.js untuk menyiapkan struk sebelum print.
-    ======================================================= -->
+<!-- =========================
+     LOADING
+     ========================= -->
 
-    <div
-        id="printArea"
-        class="print-area"
-        aria-hidden="true"
-    ></div>
+<div
+  id="loading"
+  class="loading"
+>
+  <div class="loading-box">
+    Memproses...
+  </div>
+</div>
 
 
-    <!-- ======================================================
-         JAVASCRIPT
-    ======================================================= -->
+<!-- =========================
+     TOAST
+     ========================= -->
 
-    <script src="app.js"></script>
+<div
+  id="toast"
+  class="toast"
+></div>
+
+
+<script>
+/* =========================================================
+   KONFIGURASI
+   =========================================================
+
+   ISI DENGAN URL WEB APP GOOGLE APPS SCRIPT.
+
+   Contoh:
+   https://script.google.com/macros/s/XXXXXXXX/exec
+
+   Jangan isi dengan URL spreadsheet.
+   ========================================================= */
+
+const API_URL = "";
+
+
+/* =========================================================
+   STATE
+   ========================================================= */
+
+let menus = [];
+let sales = [];
+let cart = [];
+let editingMenuId = null;
+
+
+/* =========================================================
+   ELEMENT
+   ========================================================= */
+
+const $ = id => document.getElementById(id);
+
+
+/* =========================================================
+   INIT
+   ========================================================= */
+
+document.addEventListener("DOMContentLoaded", () => {
+
+  bindNavigation();
+  bindEvents();
+
+  loadInitialData();
+
+});
+
+
+/* =========================================================
+   INITIAL DATA
+   ========================================================= */
+
+async function loadInitialData() {
+
+  if (!API_URL) {
+
+    setConnection(
+      false,
+      "API belum diisi"
+    );
+
+    renderMenus();
+    renderCart();
+    renderSales();
+    renderMenuTable();
+
+    return;
+
+  }
+
+  setLoading(true);
+
+  try {
+
+    await pingAPI();
+
+    await Promise.all([
+      loadMenus(),
+      loadSales()
+    ]);
+
+    setConnection(
+      true,
+      "Terhubung"
+    );
+
+  }
+
+  catch (error) {
+
+    console.error(error);
+
+    setConnection(
+      false,
+      "Tidak terhubung"
+    );
+
+    showToast(
+      error.message ||
+      "Gagal memuat data.",
+      "error"
+    );
+
+  }
+
+  finally {
+
+    setLoading(false);
+
+  }
+
+}
+
+
+/* =========================================================
+   API GET
+   ========================================================= */
+
+async function apiGet(action) {
+
+  if (!API_URL) {
+
+    throw new Error(
+      "API_URL belum diisi."
+    );
+
+  }
+
+  const url =
+    API_URL +
+    "?action=" +
+    encodeURIComponent(action);
+
+  const response =
+    await fetch(
+      url,
+      {
+        method: "GET",
+        cache: "no-store"
+      }
+    );
+
+  if (!response.ok) {
+
+    throw new Error(
+      "HTTP GET error: " +
+      response.status
+    );
+
+  }
+
+  const data =
+    await response.json();
+
+  if (
+    data &&
+    data.success === false
+  ) {
+
+    throw new Error(
+      data.message ||
+      "Permintaan gagal."
+    );
+
+  }
+
+  return data;
+
+}
+
+
+/* =========================================================
+   API POST
+   ========================================================= */
+
+async function apiPost(action, payload = {}) {
+
+  if (!API_URL) {
+
+    throw new Error(
+      "API_URL belum diisi."
+    );
+
+  }
+
+  const response =
+    await fetch(
+      API_URL,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "text/plain;charset=utf-8"
+        },
+
+        body: JSON.stringify({
+          action,
+          ...payload
+        })
+      }
+    );
+
+  if (!response.ok) {
+
+    throw new Error(
+      "HTTP POST error: " +
+      response.status
+    );
+
+  }
+
+  const data =
+    await response.json();
+
+  if (
+    data &&
+    data.success === false
+  ) {
+
+    throw new Error(
+      data.message ||
+      "Permintaan gagal."
+    );
+
+  }
+
+  return data;
+
+}
+
+
+/* =========================================================
+   PING
+   ========================================================= */
+
+async function pingAPI() {
+
+  const data =
+    await apiGet("ping");
+
+  if (
+    !data ||
+    data.success !== true
+  ) {
+
+    throw new Error(
+      "Google Apps Script tidak merespons."
+    );
+
+  }
+
+}
+
+
+/* =========================================================
+   LOAD MENUS
+   ========================================================= */
+
+async function loadMenus() {
+
+  const data =
+    await apiGet("getMenus");
+
+  menus =
+    Array.isArray(data.menus)
+      ? data.menus
+      : [];
+
+  renderCategoryFilter();
+  renderMenus();
+  renderMenuTable();
+
+}
+
+
+/* =========================================================
+   LOAD SALES
+   ========================================================= */
+
+async function loadSales() {
+
+  const data =
+    await apiGet("getSales");
+
+  sales =
+    Array.isArray(data.sales)
+      ? data.sales
+      : [];
+
+  renderSales(
+    data.totalSales
+  );
+
+}
+
+
+/* =========================================================
+   NAVIGATION
+   ========================================================= */
+
+function bindNavigation() {
+
+  document
+    .querySelectorAll(".nav-btn")
+    .forEach(button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          const page =
+            button.dataset.page;
+
+          document
+            .querySelectorAll(".nav-btn")
+            .forEach(item => {
+              item.classList.remove(
+                "active"
+              );
+            });
+
+          button.classList.add(
+            "active"
+          );
+
+          document
+            .querySelectorAll(".page")
+            .forEach(section => {
+              section.classList.remove(
+                "active"
+              );
+            });
+
+          const target =
+            $("page-" + page);
+
+          if (target) {
+            target.classList.add(
+              "active"
+            );
+          }
+
+        }
+      );
+
+    });
+
+}
+
+
+/* =========================================================
+   EVENTS
+   ========================================================= */
+
+function bindEvents() {
+
+  $("menuSearch")
+    .addEventListener(
+      "input",
+      renderMenus
+    );
+
+  $("categoryFilter")
+    .addEventListener(
+      "change",
+      renderMenus
+    );
+
+  $("payment")
+    .addEventListener(
+      "input",
+      renderCart
+    );
+
+  $("clearCartBtn")
+    .addEventListener(
+      "click",
+      clearCart
+    );
+
+  $("saveSaleBtn")
+    .addEventListener(
+      "click",
+      saveCurrentSale
+    );
+
+  $("refreshMenusBtn")
+    .addEventListener(
+      "click",
+      async () => {
+
+        setLoading(true);
+
+        try {
+
+          await loadMenus();
+
+          showToast(
+            "Menu berhasil diperbarui.",
+            "success"
+          );
+
+        }
+
+        catch (error) {
+
+          showToast(
+            error.message,
+            "error"
+          );
+
+        }
+
+        finally {
+
+          setLoading(false);
+
+        }
+
+      }
+    );
+
+
+  $("refreshSalesBtn")
+    .addEventListener(
+      "click",
+      refreshSales
+    );
+
+
+  $("resetSalesBtn")
+    .addEventListener(
+      "click",
+      resetSales
+    );
+
+
+  $("addMenuBtn")
+    .addEventListener(
+      "click",
+      openAddMenuModal
+    );
+
+
+  $("closeMenuModal")
+    .addEventListener(
+      "click",
+      closeMenuModal
+    );
+
+
+  $("cancelMenuBtn")
+    .addEventListener(
+      "click",
+      closeMenuModal
+    );
+
+
+  $("menuForm")
+    .addEventListener(
+      "submit",
+      saveMenuForm
+    );
+
+
+  $("menuModal")
+    .addEventListener(
+      "click",
+      event => {
+
+        if (
+          event.target ===
+          $("menuModal")
+        ) {
+
+          closeMenuModal();
+
+        }
+
+      }
+    );
+
+}
+
+
+/* =========================================================
+   CATEGORY
+   ========================================================= */
+
+function renderCategoryFilter() {
+
+  const select =
+    $("categoryFilter");
+
+  const current =
+    select.value;
+
+  const categories =
+    [...new Set(
+      menus
+        .map(menu =>
+          String(
+            menu.category || ""
+          ).trim()
+        )
+        .filter(Boolean)
+    )]
+    .sort(
+      (a, b) =>
+        a.localeCompare(
+          b,
+          "id"
+        )
+    );
+
+
+  select.innerHTML =
+    '<option value="">Semua kategori</option>';
+
+
+  categories.forEach(category => {
+
+    const option =
+      document.createElement(
+        "option"
+      );
+
+    option.value =
+      category;
+
+    option.textContent =
+      category;
+
+    select.appendChild(
+      option
+    );
+
+  });
+
+
+  if (
+    categories.includes(
+      current
+    )
+  ) {
+
+    select.value =
+      current;
+
+  }
+
+}
+
+
+/* =========================================================
+   RENDER MENUS
+   ========================================================= */
+
+function renderMenus() {
+
+  const container =
+    $("menuGrid");
+
+  const search =
+    String(
+      $("menuSearch").value ||
+      ""
+    )
+      .trim()
+      .toLowerCase();
+
+  const category =
+    $("categoryFilter").value;
+
+
+  const filtered =
+    menus.filter(menu => {
+
+      const name =
+        String(
+          menu.name || ""
+        ).toLowerCase();
+
+      const menuCategory =
+        String(
+          menu.category || ""
+        );
+
+      const matchSearch =
+        !search ||
+        name.includes(
+          search
+        );
+
+      const matchCategory =
+        !category ||
+        menuCategory ===
+        category;
+
+      return (
+        matchSearch &&
+        matchCategory
+      );
+
+    });
+
+
+  container.innerHTML = "";
+
+
+  if (!filtered.length) {
+
+    container.innerHTML =
+      `
+        <div
+          style="
+            grid-column:1/-1;
+            text-align:center;
+            padding:35px;
+            color:#6b7280;
+          "
+        >
+          Tidak ada menu.
+        </div>
+      `;
+
+    return;
+
+  }
+
+
+  filtered.forEach(menu => {
+
+    const item =
+      document.createElement(
+        "div"
+      );
+
+    item.className =
+      "menu-item";
+
+
+    const name =
+      escapeHtml(
+        menu.name
+      );
+
+    const categoryText =
+      escapeHtml(
+        menu.category ||
+        "Tanpa kategori"
+      );
+
+    const price =
+      formatRupiah(
+        menu.price
+      );
+
+
+    item.innerHTML =
+      `
+        <div class="menu-name">
+          ${name}
+        </div>
+
+        <div class="menu-category">
+          ${categoryText}
+        </div>
+
+        <div class="menu-price">
+          ${price}
+        </div>
+
+        <button
+          class="btn btn-primary btn-block"
+          type="button"
+        >
+          Tambah
+        </button>
+      `;
+
+
+    item
+      .querySelector("button")
+      .addEventListener(
+        "click",
+        () => addToCart(menu)
+      );
+
+
+    container.appendChild(
+      item
+    );
+
+  });
+
+}
+
+
+/* =========================================================
+   CART
+   ========================================================= */
+
+function addToCart(menu) {
+
+  const id =
+    String(
+      menu.id || ""
+    );
+
+
+  let existing =
+    cart.find(
+      item =>
+        String(item.id || "") ===
+        id
+    );
+
+
+  /*
+   * Jika ID kosong, gunakan
+   * kombinasi nama + harga.
+   */
+
+  if (!id) {
+
+    existing =
+      cart.find(
+        item =>
+          item.name ===
+            menu.name &&
+          Number(item.price) ===
+            Number(menu.price)
+      );
+
+  }
+
+
+  if (existing) {
+
+    existing.quantity += 1;
+
+  }
+
+  else {
+
+    cart.push({
+
+      id:
+        menu.id || "",
+
+      name:
+        String(
+          menu.name || ""
+        ),
+
+      category:
+        String(
+          menu.category || ""
+        ),
+
+      price:
+        numberValue(
+          menu.price
+        ),
+
+      quantity: 1
+
+    });
+
+  }
+
+
+  renderCart();
+
+}
+
+
+function changeQuantity(index, delta) {
+
+  if (
+    !cart[index]
+  ) {
+    return;
+  }
+
+
+  cart[index].quantity +=
+    delta;
+
+
+  if (
+    cart[index].quantity <= 0
+  ) {
+
+    cart.splice(
+      index,
+      1
+    );
+
+  }
+
+
+  renderCart();
+
+}
+
+
+function removeCartItem(index) {
+
+  if (
+    index < 0 ||
+    index >= cart.length
+  ) {
+
+    return;
+
+  }
+
+  cart.splice(
+    index,
+    1
+  );
+
+  renderCart();
+
+}
+
+
+function clearCart() {
+
+  if (!cart.length) {
+    return;
+  }
+
+  cart = [];
+
+  $("payment").value =
+    "";
+
+  renderCart();
+
+}
+
+
+/* =========================================================
+   RENDER CART
+   ========================================================= */
+
+function renderCart() {
+
+  const container =
+    $("cartItems");
+
+  container.innerHTML =
+    "";
+
+
+  if (!cart.length) {
+
+    container.innerHTML =
+      `
+        <div class="cart-empty">
+          Keranjang masih kosong.
+        </div>
+      `;
+
+  }
+
+  else {
+
+    cart.forEach(
+      (item, index) => {
+
+        const row =
+          document.createElement(
+            "div"
+          );
+
+        row.className =
+          "cart-row";
+
+
+        const subtotal =
+          numberValue(
+            item.price
+          ) *
+          numberValue(
+            item.quantity
+          );
+
+
+        row.innerHTML =
+          `
+            <div class="cart-row-top">
+
+              <div>
+                <div class="cart-name">
+                  ${escapeHtml(
+                    item.name
+                  )}
+                </div>
+
+                <div class="cart-price">
+                  ${formatRupiah(
+                    item.price
+                  )}
+                  ×
+                  ${item.quantity}
+                </div>
+              </div>
+
+              <strong>
+                ${formatRupiah(
+                  subtotal
+                )}
+              </strong>
+
+            </div>
+
+            <div class="qty-control">
+
+              <button
+                type="button"
+                data-action="minus"
+              >
+                −
+              </button>
+
+              <span class="qty">
+                ${item.quantity}
+              </span>
+
+              <button
+                type="button"
+                data-action="plus"
+              >
+                +
+              </button>
+
+              <button
+                type="button"
+                data-action="remove"
+                style="
+                  margin-left:auto;
+                  color:#dc2626;
+                "
+              >
+                Hapus
+              </button>
+
+            </div>
+          `;
+
+
+        row
+          .querySelector(
+            '[data-action="minus"]'
+          )
+          .addEventListener(
+            "click",
+            () =>
+              changeQuantity(
+                index,
+                -1
+              )
+          );
+
+
+        row
+          .querySelector(
+            '[data-action="plus"]'
+          )
+          .addEventListener(
+            "click",
+            () =>
+              changeQuantity(
+                index,
+                1
+              )
+          );
+
+
+        row
+          .querySelector(
+            '[data-action="remove"]'
+          )
+          .addEventListener(
+            "click",
+            () =>
+              removeCartItem(
+                index
+              )
+          );
+
+
+        container.appendChild(
+          row
+        );
+
+      }
+    );
+
+  }
+
+
+  const total =
+    calculateCartTotal();
+
+
+  $("cartTotal").textContent =
+    formatRupiah(
+      total
+    );
+
+
+  const payment =
+    numberValue(
+      $("payment").value
+    );
+
+
+  const change =
+    Math.max(
+      0,
+      payment - total
+    );
+
+
+  $("changeAmount").textContent =
+    formatRupiah(
+      change
+    );
+
+}
+
+
+/* =========================================================
+   CART TOTAL
+   ========================================================= */
+
+function calculateCartTotal() {
+
+  return cart.reduce(
+    (
+      total,
+      item
+    ) =>
+      total +
+      (
+        numberValue(
+          item.price
+        ) *
+        numberValue(
+          item.quantity
+        )
+      ),
+    0
+  );
+
+}
+
+
+/* =========================================================
+   SAVE SALE
+   ========================================================= */
+
+async function saveCurrentSale() {
+
+  if (!cart.length) {
+
+    showToast(
+      "Keranjang masih kosong.",
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  const total =
+    calculateCartTotal();
+
+
+  const payment =
+    numberValue(
+      $("payment").value
+    );
+
+
+  if (
+    payment < total
+  ) {
+
+    showToast(
+      "Pembayaran kurang dari total transaksi.",
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  const change =
+    payment - total;
+
+
+  const now =
+    new Date();
+
+
+  const sale = {
+
+    id:
+      createId(
+        "sale"
+      ),
+
+    transactionNumber:
+      createTransactionNumber(
+        now
+      ),
+
+    date:
+      now.toISOString(),
+
+    dateKey:
+      getDateKey(
+        now
+      ),
+
+    total,
+
+    payment,
+
+    change,
+
+    items:
+      cart.map(
+        item => ({
+
+          id:
+            item.id,
+
+          name:
+            item.name,
+
+          category:
+            item.category,
+
+          price:
+            numberValue(
+              item.price
+            ),
+
+          quantity:
+            numberValue(
+              item.quantity
+            ),
+
+          subtotal:
+            numberValue(
+              item.price
+            ) *
+            numberValue(
+              item.quantity
+            )
+
+        })
+      )
+
+  };
+
+
+  setLoading(true);
+
+
+  try {
+
+    const result =
+      await apiPost(
+        "saveSale",
+        {
+          sale
+        }
+      );
+
+
+    if (
+      !result ||
+      result.success !== true
+    ) {
+
+      throw new Error(
+        result &&
+        result.message
+          ? result.message
+          : "Transaksi gagal disimpan."
+      );
+
+    }
+
+
+    showToast(
+      "Transaksi berhasil disimpan.",
+      "success"
+    );
+
+
+    cart = [];
+
+    $("payment").value =
+      "";
+
+    renderCart();
+
+
+    await loadSales();
+
+
+  }
+
+  catch (error) {
+
+    console.error(error);
+
+    showToast(
+      error.message ||
+      "Gagal menyimpan transaksi.",
+      "error"
+    );
+
+  }
+
+  finally {
+
+    setLoading(false);
+
+  }
+
+}
+
+
+/* =========================================================
+   SALES
+   ========================================================= */
+
+function renderSales(totalFromApi) {
+
+  const body =
+    $("salesTableBody");
+
+  body.innerHTML =
+    "";
+
+
+  const totalTransactions =
+    sales.length;
+
+
+  const totalSales =
+    typeof totalFromApi ===
+      "number"
+      ? totalFromApi
+      : sales.reduce(
+          (
+            sum,
+            sale
+          ) =>
+            sum +
+            numberValue(
+              sale[4]
+            ),
+          0
+        );
+
+
+  $("totalTransactions")
+    .textContent =
+      totalTransactions;
+
+
+  $("totalSales")
+    .textContent =
+      formatRupiah(
+        totalSales
+      );
+
+
+  $("averageSales")
+    .textContent =
+      formatRupiah(
+        totalTransactions
+          ? totalSales /
+            totalTransactions
+          : 0
+      );
+
+
+  if (!sales.length) {
+
+    body.innerHTML =
+      `
+        <tr>
+          <td
+            colspan="7"
+            class="empty-table"
+          >
+            Belum ada transaksi.
+          </td>
+        </tr>
+      `;
+
+    return;
+
+  }
+
+
+  sales.forEach(
+    (sale, index) => {
+
+      /*
+       * Format dari Apps Script:
+       *
+       * 0 ID
+       * 1 NO TRANSAKSI
+       * 2 TANGGAL
+       * 3 TANGGAL KEY
+       * 4 TOTAL
+       * 5 PEMBAYARAN
+       * 6 KEMBALIAN
+       * 7 JUMLAH ITEM
+       */
+
+      const transactionNumber =
+        sale[1] || "-";
+
+
+      const date =
+        formatDateTime(
+          sale[2]
+        );
+
+
+      const itemCount =
+        numberValue(
+          sale[7]
+        );
+
+
+      const total =
+        numberValue(
+          sale[4]
+        );
+
+
+      const payment =
+        numberValue(
+          sale[5]
+        );
+
+
+      const change =
+        numberValue(
+          sale[6]
+        );
+
+
+      const row =
+        document.createElement(
+          "tr"
+        );
+
+
+      row.innerHTML =
+        `
+          <td>
+            ${index + 1}
+          </td>
+
+          <td>
+            ${escapeHtml(
+              transactionNumber
+            )}
+          </td>
+
+          <td>
+            ${escapeHtml(
+              date
+            )}
+          </td>
+
+          <td>
+            ${itemCount}
+          </td>
+
+          <td class="text-right">
+            ${formatRupiah(
+              total
+            )}
+          </td>
+
+          <td class="text-right">
+            ${formatRupiah(
+              payment
+            )}
+          </td>
+
+          <td class="text-right">
+            ${formatRupiah(
+              change
+            )}
+          </td>
+        `;
+
+
+      body.appendChild(
+        row
+      );
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   REFRESH SALES
+   ========================================================= */
+
+async function refreshSales() {
+
+  setLoading(true);
+
+  try {
+
+    await loadSales();
+
+    showToast(
+      "Data penjualan diperbarui.",
+      "success"
+    );
+
+  }
+
+  catch (error) {
+
+    showToast(
+      error.message,
+      "error"
+    );
+
+  }
+
+  finally {
+
+    setLoading(false);
+
+  }
+
+}
+
+
+/* =========================================================
+   RESET SALES
+   ========================================================= */
+
+async function resetSales() {
+
+  if (!sales.length) {
+
+    showToast(
+      "Data penjualan sudah kosong.",
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  const confirmed =
+    window.confirm(
+      "Yakin ingin menghapus SEMUA data penjualan? Header sheet tetap dan data menu tidak akan dihapus."
+    );
+
+
+  if (!confirmed) {
+    return;
+  }
+
+
+  setLoading(true);
+
+
+  try {
+
+    const result =
+      await apiPost(
+        "deleteAllSales"
+      );
+
+
+    if (
+      !result ||
+      result.success !== true
+    ) {
+
+      throw new Error(
+        result &&
+        result.message
+          ? result.message
+          : "Gagal menghapus penjualan."
+      );
+
+    }
+
+
+    sales = [];
+
+    renderSales(0);
+
+
+    showToast(
+      result.message ||
+      "Semua penjualan berhasil dihapus.",
+      "success"
+    );
+
+  }
+
+  catch (error) {
+
+    console.error(error);
+
+    showToast(
+      error.message ||
+      "Gagal menghapus penjualan.",
+      "error"
+    );
+
+  }
+
+  finally {
+
+    setLoading(false);
+
+  }
+
+}
+
+
+/* =========================================================
+   MENU TABLE
+   ========================================================= */
+
+function renderMenuTable() {
+
+  const body =
+    $("menuTableBody");
+
+  body.innerHTML =
+    "";
+
+
+  if (!menus.length) {
+
+    body.innerHTML =
+      `
+        <tr>
+          <td
+            colspan="5"
+            class="empty-table"
+          >
+            Belum ada menu.
+          </td>
+        </tr>
+      `;
+
+    return;
+
+  }
+
+
+  menus.forEach(
+    (menu, index) => {
+
+      const row =
+        document.createElement(
+          "tr"
+        );
+
+
+      row.innerHTML =
+        `
+          <td>
+            ${index + 1}
+          </td>
+
+          <td>
+            ${escapeHtml(
+              menu.name
+            )}
+          </td>
+
+          <td>
+            ${escapeHtml(
+              menu.category ||
+              "-"
+            )}
+          </td>
+
+          <td class="text-right">
+            ${formatRupiah(
+              menu.price
+            )}
+          </td>
+
+          <td>
+
+            <button
+              class="btn btn-light btn-small"
+              type="button"
+              data-action="edit"
+            >
+              Edit
+            </button>
+
+            <button
+              class="btn btn-danger btn-small"
+              type="button"
+              data-action="delete"
+            >
+              Hapus
+            </button>
+
+          </td>
+        `;
+
+
+      row
+        .querySelector(
+          '[data-action="edit"]'
+        )
+        .addEventListener(
+          "click",
+          () =>
+            openEditMenuModal(
+              menu
+            )
+        );
+
+
+      row
+        .querySelector(
+          '[data-action="delete"]'
+        )
+        .addEventListener(
+          "click",
+          () =>
+            deleteMenuItem(
+              menu
+            )
+        );
+
+
+      body.appendChild(
+        row
+      );
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   ADD MENU MODAL
+   ========================================================= */
+
+function openAddMenuModal() {
+
+  editingMenuId =
+    null;
+
+  $("menuModalTitle")
+    .textContent =
+      "Tambah Menu";
+
+  $("menuId").value =
+    "";
+
+  $("menuName").value =
+    "";
+
+  $("menuCategory").value =
+    "";
+
+  $("menuPrice").value =
+    "";
+
+  $("menuModal")
+    .classList
+    .add("show");
+
+  $("menuName").focus();
+
+}
+
+
+/* =========================================================
+   EDIT MENU MODAL
+   ========================================================= */
+
+function openEditMenuModal(menu) {
+
+  editingMenuId =
+    String(
+      menu.id || ""
+    );
+
+
+  $("menuModalTitle")
+    .textContent =
+      "Edit Menu";
+
+
+  $("menuId").value =
+    menu.id || "";
+
+
+  $("menuName").value =
+    menu.name || "";
+
+
+  $("menuCategory").value =
+    menu.category || "";
+
+
+  $("menuPrice").value =
+    numberValue(
+      menu.price
+    );
+
+
+  $("menuModal")
+    .classList
+    .add("show");
+
+
+  $("menuName").focus();
+
+}
+
+
+/* =========================================================
+   CLOSE MODAL
+   ========================================================= */
+
+function closeMenuModal() {
+
+  $("menuModal")
+    .classList
+    .remove("show");
+
+}
+
+
+/* =========================================================
+   SAVE MENU FORM
+   ========================================================= */
+
+async function saveMenuForm(event) {
+
+  event.preventDefault();
+
+
+  const name =
+    String(
+      $("menuName").value ||
+      ""
+    ).trim();
+
+
+  const category =
+    String(
+      $("menuCategory").value ||
+      ""
+    ).trim();
+
+
+  const price =
+    numberValue(
+      $("menuPrice").value
+    );
+
+
+  if (!name) {
+
+    showToast(
+      "Nama menu wajib diisi.",
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  if (price < 0) {
+
+    showToast(
+      "Harga tidak valid.",
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  const menu = {
+
+    id:
+      editingMenuId ||
+      createId(
+        "menu"
+      ),
+
+    name,
+
+    category,
+
+    price
+
+  };
+
+
+  setLoading(true);
+
+
+  try {
+
+    let result;
+
+
+    if (editingMenuId) {
+
+      result =
+        await apiPost(
+          "updateMenu",
+          {
+            menu
+          }
+        );
+
+    }
+
+    else {
+
+      result =
+        await apiPost(
+          "saveMenu",
+          {
+            menu
+          }
+        );
+
+    }
+
+
+    if (
+      !result ||
+      result.success !== true
+    ) {
+
+      throw new Error(
+        result &&
+        result.message
+          ? result.message
+          : "Menu gagal disimpan."
+      );
+
+    }
+
+
+    closeMenuModal();
+
+    await loadMenus();
+
+
+    showToast(
+      result.message ||
+      "Menu berhasil disimpan.",
+      "success"
+    );
+
+  }
+
+  catch (error) {
+
+    console.error(error);
+
+    showToast(
+      error.message ||
+      "Gagal menyimpan menu.",
+      "error"
+    );
+
+  }
+
+  finally {
+
+    setLoading(false);
+
+  }
+
+}
+
+
+/* =========================================================
+   DELETE MENU
+   ========================================================= */
+
+async function deleteMenuItem(menu) {
+
+  if (!menu.id) {
+
+    showToast(
+      "ID menu tidak tersedia.",
+      "error"
+    );
+
+    return;
+
+  }
+
+
+  const confirmed =
+    window.confirm(
+      `Hapus menu "${menu.name}"?`
+    );
+
+
+  if (!confirmed) {
+    return;
+  }
+
+
+  setLoading(true);
+
+
+  try {
+
+    const result =
+      await apiPost(
+        "deleteMenu",
+        {
+          menuId:
+            menu.id
+        }
+      );
+
+
+    if (
+      !result ||
+      result.success !== true
+    ) {
+
+      throw new Error(
+        result &&
+        result.message
+          ? result.message
+          : "Menu gagal dihapus."
+      );
+
+    }
+
+
+    /*
+     * Jika menu yang dihapus
+     * sedang ada di keranjang,
+     * keluarkan dari keranjang.
+     */
+
+    cart =
+      cart.filter(
+        item =>
+          String(item.id || "") !==
+          String(menu.id)
+      );
+
+
+    renderCart();
+
+    await loadMenus();
+
+
+    showToast(
+      result.message ||
+      "Menu berhasil dihapus.",
+      "success"
+    );
+
+  }
+
+  catch (error) {
+
+    console.error(error);
+
+    showToast(
+      error.message ||
+      "Gagal menghapus menu.",
+      "error"
+    );
+
+  }
+
+  finally {
+
+    setLoading(false);
+
+  }
+
+}
+
+
+/* =========================================================
+   CONNECTION
+   ========================================================= */
+
+function setConnection(
+  online,
+  text
+) {
+
+  const dot =
+    $("connectionDot");
+
+  const label =
+    $("connectionText");
+
+
+  dot.classList.remove(
+    "online",
+    "offline"
+  );
+
+
+  dot.classList.add(
+    online
+      ? "online"
+      : "offline"
+  );
+
+
+  label.textContent =
+    text;
+
+}
+
+
+/* =========================================================
+   LOADING
+   ========================================================= */
+
+function setLoading(show) {
+
+  $("loading")
+    .classList
+    .toggle(
+      "show",
+      Boolean(show)
+    );
+
+}
+
+
+/* =========================================================
+   TOAST
+   ========================================================= */
+
+let toastTimer = null;
+
+function showToast(
+  message,
+  type = ""
+) {
+
+  const toast =
+    $("toast");
+
+
+  toast.textContent =
+    message;
+
+
+  toast.className =
+    "toast show " +
+    (
+      type === "success"
+        ? "success"
+        : type === "error"
+          ? "error"
+          : ""
+    );
+
+
+  clearTimeout(
+    toastTimer
+  );
+
+
+  toastTimer =
+    setTimeout(
+      () => {
+
+        toast.classList
+          .remove(
+            "show"
+          );
+
+      },
+      3000
+    );
+
+}
+
+
+/* =========================================================
+   FORMAT RUPIAH
+   ========================================================= */
+
+function formatRupiah(value) {
+
+  const number =
+    numberValue(
+      value
+    );
+
+
+  return (
+    "Rp" +
+    new Intl.NumberFormat(
+      "id-ID"
+    ).format(
+      number
+    )
+  );
+
+}
+
+
+/* =========================================================
+   NUMBER
+   ========================================================= */
+
+function numberValue(value) {
+
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+
+    return 0;
+
+  }
+
+
+  if (
+    typeof value ===
+    "number"
+  ) {
+
+    return Number.isFinite(
+      value
+    )
+      ? value
+      : 0;
+
+  }
+
+
+  let text =
+    String(
+      value
+    ).trim();
+
+
+  if (!text) {
+    return 0;
+  }
+
+
+  if (
+    text.includes(".") &&
+    text.includes(",")
+  ) {
+
+    text =
+      text
+        .replace(/\./g, "")
+        .replace(",", ".");
+
+  }
+
+  else if (
+    text.includes(",")
+  ) {
+
+    text =
+      text.replace(
+        ",",
+        "."
+      );
+
+  }
+
+
+  text =
+    text.replace(
+      /[^\d.-]/g,
+      ""
+    );
+
+
+  const result =
+    Number(
+      text
+    );
+
+
+  return Number.isFinite(
+    result
+  )
+    ? result
+    : 0;
+
+}
+
+
+/* =========================================================
+   DATE
+   ========================================================= */
+
+function getDateKey(date) {
+
+  const d =
+    date instanceof Date
+      ? date
+      : new Date(date);
+
+
+  if (
+    Number.isNaN(
+      d.getTime()
+    )
+  ) {
+
+    return "";
+
+  }
+
+
+  return (
+    d.getFullYear() +
+    "-" +
+    String(
+      d.getMonth() + 1
+    ).padStart(2, "0") +
+    "-" +
+    String(
+      d.getDate()
+    ).padStart(2, "0")
+  );
+
+}
+
+
+function formatDateTime(value) {
+
+  if (!value) {
+    return "-";
+  }
+
+
+  const date =
+    new Date(
+      value
+    );
+
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+
+    return String(
+      value
+    );
+
+  }
+
+
+  return new Intl.DateTimeFormat(
+    "id-ID",
+    {
+      dateStyle:
+        "short",
+      timeStyle:
+        "short"
+    }
+  ).format(
+    date
+  );
+
+}
+
+
+/* =========================================================
+   ID
+   ========================================================= */
+
+function createId(prefix) {
+
+  return (
+    prefix +
+    "_" +
+    Date.now() +
+    "_" +
+    Math.random()
+      .toString(36)
+      .slice(2, 8)
+  );
+
+}
+
+
+function createTransactionNumber(
+  date
+) {
+
+  const d =
+    date instanceof Date
+      ? date
+      : new Date();
+
+
+  const datePart =
+    d.getFullYear() +
+    String(
+      d.getMonth() + 1
+    ).padStart(2, "0") +
+    String(
+      d.getDate()
+    ).padStart(2, "0");
+
+
+  const timePart =
+    String(
+      d.getHours()
+    ).padStart(2, "0") +
+    String(
+      d.getMinutes()
+    ).padStart(2, "0") +
+    String(
+      d.getSeconds()
+    ).padStart(2, "0");
+
+
+  const randomPart =
+    Math.floor(
+      Math.random() *
+      1000
+    )
+      .toString()
+      .padStart(
+        3,
+        "0"
+      );
+
+
+  return (
+    "TRX-" +
+    datePart +
+    "-" +
+    timePart +
+    "-" +
+    randomPart
+  );
+
+}
+
+
+/* =========================================================
+   ESCAPE HTML
+   ========================================================= */
+
+function escapeHtml(value) {
+
+  return String(
+    value ??
+    ""
+  )
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+    .replace(
+      /</g,
+      "&lt;"
+    )
+    .replace(
+      />/g,
+      "&gt;"
+    )
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+    .replace(
+      /'/g,
+      "&#039;"
+    );
+
+}
+</script>
 
 </body>
 </html>
