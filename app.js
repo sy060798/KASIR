@@ -1,48 +1,40 @@
 /* =========================================================
    KASIR APP.JS
-   ---------------------------------------------------------
-   Fitur:
-   - Tambah / edit / hapus menu
-   - Menu tanpa data dummy
+   DATABASE UTAMA: GOOGLE SHEETS
+   =========================================================
+
+   FITUR:
+   - Ambil menu langsung dari Google Sheets
+   - Tambah menu langsung ke Google Sheets
+   - Edit menu langsung ke Google Sheets
+   - Hapus menu langsung dari Google Sheets
    - Pencarian menu
    - Filter kategori
    - Keranjang
    - Tambah / kurang jumlah
    - Total pembayaran
    - Hitung kembalian
-   - Simpan transaksi
-   - Riwayat penjualan hari ini
+   - Simpan transaksi langsung ke Google Sheets
+   - Riwayat penjualan hari ini dari Google Sheets
    - Download penjualan hari ini
-   - Setel ulang penjualan hari ini
+   - Reset penjualan hari ini di Google Sheets
    - Print struk
-   - Siap dihubungkan ke Google Apps Script
+   - Tidak menggunakan localStorage sebagai database
+
+   SHEET YANG DIGUNAKAN:
+   - MENU
+   - PENJUALAN
+   - DETAIL_PENJUALAN
+
 ========================================================= */
 
 
 /* =========================================================
-   KONFIGURASI GOOGLE SHEETS
-   ---------------------------------------------------------
-   MASUKKAN URL WEB APP GOOGLE APPS SCRIPT DI SINI.
-
-   Contoh:
-   const GOOGLE_SCRIPT_URL =
-       "https://script.google.com/macros/s/XXXXXXXX/exec";
-
-   Jangan isi dengan URL palsu.
+   GOOGLE APPS SCRIPT URL
 ========================================================= */
 
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwBPxsQ6v0co6-D-tQ-6-Kn4tCsJkrrwEGC22lasI94ASuQvCB_xp-gR7tEoFFD8nTbQw/exec";
-
-
-/* =========================================================
-   KEY LOCAL STORAGE
-========================================================= */
-
-const STORAGE_KEYS = {
-    menus: "kasir_menus",
-    todaySales: "kasir_today_sales",
-    transactionNumber: "kasir_transaction_number"
-};
+const GOOGLE_SCRIPT_URL =
+    "https://script.google.com/macros/s/AKfycbwBPxsQ6v0co6-D-tQ-6-Kn4tCsJkrrwEGC22lasI94ASuQvCB_xp-gR7tEoFFD8nTbQw/exec";
 
 
 /* =========================================================
@@ -67,6 +59,10 @@ const state = {
 
     lastCompletedSale: null,
 
+    isLoadingMenus: false,
+
+    isLoadingSales: false,
+
     isSaving: false
 
 };
@@ -89,12 +85,15 @@ function formatRupiah(value) {
 
     const number = Number(value) || 0;
 
-    return new Intl.NumberFormat("id-ID", {
-        style: "currency",
-        currency: "IDR",
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    }).format(number);
+    return new Intl.NumberFormat(
+        "id-ID",
+        {
+            style: "currency",
+            currency: "IDR",
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }
+    ).format(number);
 
 }
 
@@ -105,7 +104,9 @@ function formatRupiah(value) {
 
 function formatNumber(value) {
 
-    return new Intl.NumberFormat("id-ID").format(
+    return new Intl.NumberFormat(
+        "id-ID"
+    ).format(
         Number(value) || 0
     );
 
@@ -113,7 +114,7 @@ function formatNumber(value) {
 
 
 /* =========================================================
-   DATE
+   TANGGAL
 ========================================================= */
 
 function getDateObject() {
@@ -125,28 +126,39 @@ function getDateObject() {
 
 function getTodayKey() {
 
-    const date = getDateObject();
+    const date =
+        getDateObject();
 
-    const year = date.getFullYear();
+    const year =
+        date.getFullYear();
 
-    const month = String(
-        date.getMonth() + 1
-    ).padStart(2, "0");
+    const month =
+        String(
+            date.getMonth() + 1
+        ).padStart(2, "0");
 
-    const day = String(
-        date.getDate()
-    ).padStart(2, "0");
+    const day =
+        String(
+            date.getDate()
+        ).padStart(2, "0");
 
     return `${year}-${month}-${day}`;
 
 }
 
 
-function formatDateIndonesia(dateValue) {
+function formatDateIndonesia(
+    dateValue
+) {
 
-    const date = new Date(dateValue);
+    const date =
+        new Date(dateValue);
 
-    if (Number.isNaN(date.getTime())) {
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
         return "-";
     }
 
@@ -162,11 +174,18 @@ function formatDateIndonesia(dateValue) {
 }
 
 
-function formatDateTimeIndonesia(dateValue) {
+function formatDateTimeIndonesia(
+    dateValue
+) {
 
-    const date = new Date(dateValue);
+    const date =
+        new Date(dateValue);
 
-    if (Number.isNaN(date.getTime())) {
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
         return "-";
     }
 
@@ -192,20 +211,37 @@ function formatDateTimeIndonesia(dateValue) {
 function escapeHtml(value) {
 
     return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+        .replaceAll(
+            "&",
+            "&amp;"
+        )
+        .replaceAll(
+            "<",
+            "&lt;"
+        )
+        .replaceAll(
+            ">",
+            "&gt;"
+        )
+        .replaceAll(
+            '"',
+            "&quot;"
+        )
+        .replaceAll(
+            "'",
+            "&#039;"
+        );
 
 }
 
 
 /* =========================================================
-   GENERATE ID
+   ID
 ========================================================= */
 
-function generateId(prefix = "id") {
+function generateId(
+    prefix = "id"
+) {
 
     return (
         prefix +
@@ -216,134 +252,6 @@ function generateId(prefix = "id") {
             .toString(36)
             .slice(2, 8)
     );
-
-}
-
-
-/* =========================================================
-   LOAD DATA
-========================================================= */
-
-function loadLocalData() {
-
-    try {
-
-        const menus =
-            localStorage.getItem(
-                STORAGE_KEYS.menus
-            );
-
-        const sales =
-            localStorage.getItem(
-                STORAGE_KEYS.todaySales
-            );
-
-        state.menus =
-            menus
-                ? JSON.parse(menus)
-                : [];
-
-        state.todaySales =
-            sales
-                ? JSON.parse(sales)
-                : [];
-
-
-        if (!Array.isArray(state.menus)) {
-            state.menus = [];
-        }
-
-        if (!Array.isArray(state.todaySales)) {
-            state.todaySales = [];
-        }
-
-
-        /*
-         * Hanya tampilkan penjualan hari ini.
-         * Penjualan hari sebelumnya tidak dihapus
-         * dari Google Sheets.
-         */
-
-        const today = getTodayKey();
-
-        state.todaySales =
-            state.todaySales.filter(
-                sale => sale.dateKey === today
-            );
-
-        saveTodaySalesLocal();
-
-    } catch (error) {
-
-        console.error(
-            "Gagal membaca data lokal:",
-            error
-        );
-
-        state.menus = [];
-        state.todaySales = [];
-
-    }
-
-}
-
-
-/* =========================================================
-   SAVE MENU LOCAL
-========================================================= */
-
-function saveMenusLocal() {
-
-    localStorage.setItem(
-        STORAGE_KEYS.menus,
-        JSON.stringify(state.menus)
-    );
-
-}
-
-
-/* =========================================================
-   SAVE SALES LOCAL
-========================================================= */
-
-function saveTodaySalesLocal() {
-
-    localStorage.setItem(
-        STORAGE_KEYS.todaySales,
-        JSON.stringify(state.todaySales)
-    );
-
-}
-
-
-/* =========================================================
-   CURRENT DATE UI
-========================================================= */
-
-function renderCurrentDate() {
-
-    const now = getDateObject();
-
-    const text =
-        new Intl.DateTimeFormat(
-            "id-ID",
-            {
-                weekday: "long",
-                day: "2-digit",
-                month: "long",
-                year: "numeric"
-            }
-        ).format(now);
-
-
-    if ($("currentDate")) {
-        $("currentDate").textContent = text;
-    }
-
-    if ($("salesDate")) {
-        $("salesDate").textContent =
-            `Tanggal: ${formatDateIndonesia(now)}`;
-    }
 
 }
 
@@ -363,7 +271,10 @@ function setConnectionStatus(
     const label =
         $("connectionText");
 
-    if (!indicator || !label) {
+    if (
+        !indicator ||
+        !label
+    ) {
         return;
     }
 
@@ -373,32 +284,208 @@ function setConnectionStatus(
         "loading"
     );
 
-    indicator.classList.add(status);
+    indicator.classList.add(
+        status
+    );
 
-    label.textContent = text;
+    label.textContent =
+        text;
 
 }
 
 
 /* =========================================================
-   INITIAL CONNECTION STATUS
+   API REQUEST
 ========================================================= */
 
-function initializeConnectionStatus() {
+async function googleRequest(
+    payload = {},
+    method = "POST"
+) {
 
-    if (GOOGLE_SCRIPT_URL) {
+    if (
+        !GOOGLE_SCRIPT_URL
+    ) {
 
-        setConnectionStatus(
-            "loading",
-            "Terhubung ke Google Sheets..."
+        throw new Error(
+            "URL Google Apps Script belum diisi."
         );
+
+    }
+
+
+    let response;
+
+
+    if (
+        method === "GET"
+    ) {
+
+        const params =
+            new URLSearchParams();
+
+
+        Object.entries(payload)
+            .forEach(
+                ([key, value]) => {
+
+                    params.set(
+                        key,
+                        String(value)
+                    );
+
+                }
+            );
+
+
+        response =
+            await fetch(
+                GOOGLE_SCRIPT_URL +
+                "?" +
+                params.toString(),
+                {
+                    method: "GET",
+                    cache: "no-store"
+                }
+            );
 
     } else {
 
+        response =
+            await fetch(
+                GOOGLE_SCRIPT_URL,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "text/plain;charset=utf-8"
+                    },
+
+                    body:
+                        JSON.stringify(
+                            payload
+                        )
+                }
+            );
+
+    }
+
+
+    if (
+        !response.ok
+    ) {
+
+        throw new Error(
+            `Server Google Sheets error: ${response.status}`
+        );
+
+    }
+
+
+    const text =
+        await response.text();
+
+
+    let result;
+
+
+    try {
+
+        result =
+            JSON.parse(text);
+
+    } catch (error) {
+
+        console.error(
+            "Response Google Apps Script:",
+            text
+        );
+
+        throw new Error(
+            "Response Google Apps Script bukan JSON yang valid."
+        );
+
+    }
+
+
+    if (
+        result &&
+        result.success === false
+    ) {
+
+        throw new Error(
+            result.message ||
+            "Google Sheets menolak permintaan."
+        );
+
+    }
+
+
+    return result;
+
+}
+
+
+/* =========================================================
+   PING GOOGLE SHEETS
+========================================================= */
+
+async function checkGoogleSheetsConnection() {
+
+    setConnectionStatus(
+        "loading",
+        "Menghubungkan Google Sheets..."
+    );
+
+
+    try {
+
+        const result =
+            await googleRequest(
+                {
+                    action: "ping"
+                },
+                "GET"
+            );
+
+
+        if (
+            result &&
+            result.success === false
+        ) {
+
+            throw new Error(
+                result.message ||
+                "Ping gagal."
+            );
+
+        }
+
+
+        setConnectionStatus(
+            "online",
+            "Google Sheets tersambung"
+        );
+
+
+        return true;
+
+    } catch (error) {
+
+        console.error(
+            "Google Sheets:",
+            error
+        );
+
+
         setConnectionStatus(
             "offline",
-            "Google Sheets belum diatur"
+            "Google Sheets tidak tersambung"
         );
+
+
+        return false;
 
     }
 
@@ -406,7 +493,140 @@ function initializeConnectionStatus() {
 
 
 /* =========================================================
-   MENU
+   LOAD MENU DARI GOOGLE SHEETS
+========================================================= */
+
+async function loadMenusFromGoogleSheets() {
+
+    if (
+        state.isLoadingMenus
+    ) {
+        return;
+    }
+
+
+    state.isLoadingMenus =
+        true;
+
+
+    try {
+
+        const result =
+            await googleRequest(
+                {
+                    action: "getMenus"
+                },
+                "GET"
+            );
+
+
+        const menus =
+            Array.isArray(
+                result.menus
+            )
+                ? result.menus
+                : [];
+
+
+        state.menus =
+            menus.map(
+                menu => ({
+
+                    id:
+                        String(
+                            menu.id ??
+                            menu.ID ??
+                            ""
+                        ),
+
+                    name:
+                        String(
+                            menu.name ??
+                            menu.nama ??
+                            menu.Nama ??
+                            ""
+                        ).trim(),
+
+                    category:
+                        String(
+                            menu.category ??
+                            menu.kategori ??
+                            menu.Kategori ??
+                            ""
+                        ).trim(),
+
+                    price:
+                        Number(
+                            menu.price ??
+                            menu.harga ??
+                            menu.Harga ??
+                            0
+                        )
+
+                })
+            )
+            .filter(
+                menu =>
+                    menu.id &&
+                    menu.name
+            );
+
+
+        renderCategories();
+
+        renderMenus();
+
+        renderManagedMenus();
+
+
+        setConnectionStatus(
+            "online",
+            "Google Sheets tersambung"
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Gagal mengambil menu:",
+            error
+        );
+
+
+        state.menus = [];
+
+        renderCategories();
+
+        renderMenus();
+
+        renderManagedMenus();
+
+
+        setConnectionStatus(
+            "offline",
+            "Gagal mengambil menu dari Google Sheets"
+        );
+
+
+        showNotification(
+            error.message ||
+            "Gagal mengambil menu dari Google Sheets.",
+            "error"
+        );
+
+
+    } finally {
+
+        state.isLoadingMenus =
+            false;
+
+    }
+
+}
+
+
+/* =========================================================
+   GET FILTERED MENUS
 ========================================================= */
 
 function getFilteredMenus() {
@@ -417,30 +637,35 @@ function getFilteredMenus() {
             .toLowerCase();
 
 
-    return state.menus.filter(menu => {
+    return state.menus.filter(
+        menu => {
 
-        const matchCategory =
-            state.selectedCategory === "all" ||
-            menu.category ===
-                state.selectedCategory;
-
-
-        const matchSearch =
-            !search ||
-            menu.name
-                .toLowerCase()
-                .includes(search) ||
-            String(menu.category || "")
-                .toLowerCase()
-                .includes(search);
+            const matchCategory =
+                state.selectedCategory ===
+                    "all" ||
+                menu.category ===
+                    state.selectedCategory;
 
 
-        return (
-            matchCategory &&
-            matchSearch
-        );
+            const matchSearch =
+                !search ||
+                menu.name
+                    .toLowerCase()
+                    .includes(search) ||
+                String(
+                    menu.category || ""
+                )
+                    .toLowerCase()
+                    .includes(search);
 
-    });
+
+            return (
+                matchCategory &&
+                matchSearch
+            );
+
+        }
+    );
 
 }
 
@@ -457,13 +682,10 @@ function renderMenus() {
     const empty =
         $("emptyMenu");
 
+
     if (!list) {
         return;
     }
-
-
-    const menus =
-        getFilteredMenus();
 
 
     list.innerHTML = "";
@@ -478,6 +700,7 @@ function renderMenus() {
         }
 
         return;
+
     }
 
 
@@ -486,21 +709,35 @@ function renderMenus() {
     }
 
 
-    if (menus.length === 0) {
+    const menus =
+        getFilteredMenus();
+
+
+    if (
+        menus.length === 0
+    ) {
 
         list.innerHTML = `
+
             <div
                 class="empty-state"
                 style="grid-column:1/-1;"
             >
-                <h3>MENU TIDAK DITEMUKAN</h3>
+
+                <h3>
+                    MENU TIDAK DITEMUKAN
+                </h3>
+
                 <p>
                     Coba gunakan kata pencarian lain.
                 </p>
+
             </div>
+
         `;
 
         return;
+
     }
 
 
@@ -515,76 +752,102 @@ function renderMenus() {
         );
 
 
-    menus.forEach(menu => {
+    menus.forEach(
+        menu => {
 
-        const quantity =
-            cartMap.get(menu.id) || 0;
-
-
-        const card =
-            document.createElement("button");
-
-        card.type = "button";
-
-        card.className =
-            "menu-card" +
-            (quantity > 0
-                ? " selected"
-                : "");
+            const quantity =
+                cartMap.get(
+                    menu.id
+                ) || 0;
 
 
-        card.dataset.menuId =
-            menu.id;
+            const card =
+                document.createElement(
+                    "button"
+                );
 
 
-        card.innerHTML = `
+            card.type =
+                "button";
 
-            <div>
 
-                <div class="menu-card-name">
-                    ${escapeHtml(menu.name)}
-                </div>
-
-                ${
-                    menu.category
-                        ? `
-                            <div class="menu-card-category">
-                                ${escapeHtml(menu.category)}
-                            </div>
-                        `
+            card.className =
+                "menu-card" +
+                (
+                    quantity > 0
+                        ? " selected"
                         : ""
-                }
-
-            </div>
+                );
 
 
-            <div class="menu-card-bottom">
+            card.dataset.menuId =
+                menu.id;
 
-                <div class="menu-card-price">
-                    ${formatRupiah(menu.price)}
-                </div>
 
-                <div class="menu-card-add">
+            card.innerHTML = `
+
+                <div>
+
+                    <div class="menu-card-name">
+                        ${escapeHtml(
+                            menu.name
+                        )}
+                    </div>
+
                     ${
-                        quantity > 0
-                            ? quantity
-                            : "+"
+                        menu.category
+                            ? `
+                                <div class="menu-card-category">
+                                    ${escapeHtml(
+                                        menu.category
+                                    )}
+                                </div>
+                            `
+                            : ""
                     }
+
                 </div>
 
-            </div>
-        `;
+
+                <div class="menu-card-bottom">
+
+                    <div class="menu-card-price">
+                        ${formatRupiah(
+                            menu.price
+                        )}
+                    </div>
+
+                    <div class="menu-card-add">
+                        ${
+                            quantity > 0
+                                ? quantity
+                                : "+"
+                        }
+                    </div>
+
+                </div>
+
+            `;
 
 
-        card.addEventListener(
-            "click",
-            () => addToCart(menu.id)
-        );
+            card.addEventListener(
+                "click",
+                () => {
+
+                    addToCart(
+                        menu.id
+                    );
+
+                }
+            );
 
 
-        list.appendChild(card);
+            list.appendChild(
+                card
+            );
 
-    });
+        }
+    );
 
 }
 
@@ -607,20 +870,19 @@ function getCategories() {
 
 
     return [
-        ...new Set(categories)
+        ...new Set(
+            categories
+        )
     ];
 
 }
 
 
-/* =========================================================
-   RENDER CATEGORY
-========================================================= */
-
 function renderCategories() {
 
     const container =
         $("categoryButtons");
+
 
     if (!container) {
         return;
@@ -631,57 +893,71 @@ function renderCategories() {
 
 
     const allButton =
-        document.createElement("button");
+        document.createElement(
+            "button"
+        );
 
-    allButton.type = "button";
+
+    allButton.type =
+        "button";
+
 
     allButton.className =
         "category-button" +
         (
-            state.selectedCategory === "all"
+            state.selectedCategory ===
+                "all"
                 ? " active"
                 : ""
         );
 
-    allButton.dataset.category = "all";
 
-    allButton.textContent = "SEMUA";
+    allButton.textContent =
+        "SEMUA";
 
 
     allButton.addEventListener(
         "click",
         () => {
 
-            state.selectedCategory = "all";
+            state.selectedCategory =
+                "all";
 
             renderCategories();
+
             renderMenus();
 
         }
     );
 
 
-    container.appendChild(allButton);
+    container.appendChild(
+        allButton
+    );
 
 
     getCategories().forEach(
         category => {
 
             const button =
-                document.createElement("button");
+                document.createElement(
+                    "button"
+                );
 
-            button.type = "button";
+
+            button.type =
+                "button";
+
 
             button.className =
                 "category-button" +
                 (
-                    state.selectedCategory === category
+                    state.selectedCategory ===
+                        category
                         ? " active"
                         : ""
                 );
 
-            button.dataset.category =
-                category;
 
             button.textContent =
                 category;
@@ -695,13 +971,16 @@ function renderCategories() {
                         category;
 
                     renderCategories();
+
                     renderMenus();
 
                 }
             );
 
 
-            container.appendChild(button);
+            container.appendChild(
+                button
+            );
 
         }
     );
@@ -710,25 +989,38 @@ function renderCategories() {
 
 
 /* =========================================================
-   ADD TO CART
+   ADD CART
 ========================================================= */
 
-function addToCart(menuId) {
+function addToCart(
+    menuId
+) {
 
     const menu =
         state.menus.find(
-            item => item.id === menuId
+            item =>
+                item.id ===
+                menuId
         );
 
 
     if (!menu) {
+
+        showNotification(
+            "Menu tidak ditemukan.",
+            "error"
+        );
+
         return;
+
     }
 
 
     const existing =
         state.cart.find(
-            item => item.menuId === menuId
+            item =>
+                item.menuId ===
+                menuId
         );
 
 
@@ -740,16 +1032,22 @@ function addToCart(menuId) {
 
         state.cart.push({
 
-            menuId: menu.id,
+            menuId:
+                menu.id,
 
-            name: menu.name,
+            name:
+                menu.name,
 
-            price: Number(menu.price),
+            price:
+                Number(
+                    menu.price
+                ),
 
             category:
                 menu.category || "",
 
-            quantity: 1
+            quantity:
+                1
 
         });
 
@@ -757,25 +1055,30 @@ function addToCart(menuId) {
 
 
     renderCart();
+
     renderMenus();
 
 }
 
 
 /* =========================================================
-   REMOVE CART ITEM
+   REMOVE CART
 ========================================================= */
 
-function removeFromCart(menuId) {
+function removeFromCart(
+    menuId
+) {
 
     state.cart =
         state.cart.filter(
             item =>
-                item.menuId !== menuId
+                item.menuId !==
+                menuId
         );
 
 
     renderCart();
+
     renderMenus();
 
 }
@@ -793,7 +1096,8 @@ function changeCartQuantity(
     const item =
         state.cart.find(
             cartItem =>
-                cartItem.menuId === menuId
+                cartItem.menuId ===
+                menuId
         );
 
 
@@ -802,18 +1106,25 @@ function changeCartQuantity(
     }
 
 
-    item.quantity += change;
+    item.quantity +=
+        change;
 
 
-    if (item.quantity <= 0) {
+    if (
+        item.quantity <= 0
+    ) {
 
-        removeFromCart(menuId);
+        removeFromCart(
+            menuId
+        );
 
         return;
+
     }
 
 
     renderCart();
+
     renderMenus();
 
 }
@@ -826,13 +1137,20 @@ function changeCartQuantity(
 function getCartTotal() {
 
     return state.cart.reduce(
-        (total, item) => {
+        (
+            total,
+            item
+        ) => {
 
             return (
                 total +
                 (
-                    Number(item.price) *
-                    Number(item.quantity)
+                    Number(
+                        item.price
+                    ) *
+                    Number(
+                        item.quantity
+                    )
                 )
             );
 
@@ -843,15 +1161,17 @@ function getCartTotal() {
 }
 
 
-/* =========================================================
-   CART ITEM COUNT
-========================================================= */
-
 function getCartItemCount() {
 
     return state.cart.reduce(
-        (total, item) =>
-            total + Number(item.quantity),
+        (
+            total,
+            item
+        ) =>
+            total +
+            Number(
+                item.quantity
+            ),
         0
     );
 
@@ -886,22 +1206,28 @@ function renderCart() {
 
 
     if (count) {
+
         count.textContent =
             formatNumber(
                 getCartItemCount()
             );
+
     }
 
 
     if (total) {
+
         total.textContent =
             formatRupiah(
                 getCartTotal()
             );
+
     }
 
 
-    if (state.cart.length === 0) {
+    if (
+        state.cart.length === 0
+    ) {
 
         if (empty) {
             empty.style.display = "";
@@ -910,141 +1236,165 @@ function renderCart() {
         updatePaymentUI();
 
         return;
+
     }
 
 
     if (empty) {
-        empty.style.display = "none";
+        empty.style.display =
+            "none";
     }
 
 
-    state.cart.forEach(item => {
+    state.cart.forEach(
+        item => {
 
-        const row =
-            document.createElement("div");
-
-        row.className = "cart-item";
-
-
-        const subtotal =
-            Number(item.price) *
-            Number(item.quantity);
+            const row =
+                document.createElement(
+                    "div"
+                );
 
 
-        row.innerHTML = `
+            row.className =
+                "cart-item";
 
-            <div class="cart-item-header">
 
-                <div>
+            const subtotal =
+                Number(
+                    item.price
+                ) *
+                Number(
+                    item.quantity
+                );
 
-                    <div class="cart-item-name">
-                        ${escapeHtml(item.name)}
+
+            row.innerHTML = `
+
+                <div class="cart-item-header">
+
+                    <div>
+
+                        <div class="cart-item-name">
+                            ${escapeHtml(
+                                item.name
+                            )}
+                        </div>
+
+                        <div class="cart-item-subtotal">
+                            ${formatRupiah(
+                                item.price
+                            )}
+                            ×
+                            ${formatNumber(
+                                item.quantity
+                            )}
+                        </div>
+
                     </div>
 
-                    <div class="cart-item-subtotal">
-                        ${formatRupiah(item.price)}
-                        ×
-                        ${formatNumber(item.quantity)}
+                    <div class="cart-item-price">
+                        ${formatRupiah(
+                            subtotal
+                        )}
                     </div>
 
                 </div>
 
-                <div class="cart-item-price">
-                    ${formatRupiah(subtotal)}
-                </div>
 
-            </div>
+                <div class="cart-item-controls">
 
+                    <div class="quantity-controls">
 
-            <div class="cart-item-controls">
+                        <button
+                            type="button"
+                            class="quantity-button"
+                            data-action="minus"
+                            data-id="${item.menuId}"
+                        >
+                            −
+                        </button>
 
-                <div class="quantity-controls">
+                        <div class="quantity-value">
+                            ${formatNumber(
+                                item.quantity
+                            )}
+                        </div>
+
+                        <button
+                            type="button"
+                            class="quantity-button"
+                            data-action="plus"
+                            data-id="${item.menuId}"
+                        >
+                            +
+                        </button>
+
+                    </div>
+
 
                     <button
                         type="button"
-                        class="quantity-button"
-                        data-action="minus"
+                        class="remove-cart-item"
                         data-id="${item.menuId}"
                     >
-                        −
-                    </button>
-
-                    <div class="quantity-value">
-                        ${formatNumber(item.quantity)}
-                    </div>
-
-                    <button
-                        type="button"
-                        class="quantity-button"
-                        data-action="plus"
-                        data-id="${item.menuId}"
-                    >
-                        +
+                        HAPUS
                     </button>
 
                 </div>
 
-
-                <button
-                    type="button"
-                    class="remove-cart-item"
-                    data-id="${item.menuId}"
-                >
-                    HAPUS
-                </button>
-
-            </div>
-        `;
+            `;
 
 
-        list.appendChild(row);
+            list.appendChild(
+                row
+            );
 
-    });
+        }
+    );
 
 
     list.querySelectorAll(
         ".quantity-button"
-    ).forEach(button => {
+    ).forEach(
+        button => {
 
-        button.addEventListener(
-            "click",
-            () => {
+            button.addEventListener(
+                "click",
+                () => {
 
-                const id =
-                    button.dataset.id;
+                    changeCartQuantity(
+                        button.dataset.id,
+                        button.dataset.action ===
+                            "plus"
+                            ? 1
+                            : -1
+                    );
 
-                const action =
-                    button.dataset.action;
+                }
+            );
 
-                changeCartQuantity(
-                    id,
-                    action === "plus"
-                        ? 1
-                        : -1
-                );
-
-            }
-        );
-
-    });
+        }
+    );
 
 
     list.querySelectorAll(
         ".remove-cart-item"
-    ).forEach(button => {
+    ).forEach(
+        button => {
 
-        button.addEventListener(
-            "click",
-            () => {
+            button.addEventListener(
+                "click",
+                () => {
 
-                removeFromCart(
-                    button.dataset.id
-                );
+                    removeFromCart(
+                        button.dataset.id
+                    );
 
-            }
-        );
+                }
+            );
 
-    });
+        }
+    );
 
 
     updatePaymentUI();
@@ -1061,28 +1411,20 @@ function getPaymentAmount() {
     const input =
         $("paymentAmount");
 
+
     if (!input) {
         return 0;
     }
 
-    return Number(input.value) || 0;
-
-}
-
-
-function getChangeAmount() {
 
     return (
-        getPaymentAmount() -
-        getCartTotal()
+        Number(
+            input.value
+        ) || 0
     );
 
 }
 
-
-/* =========================================================
-   PAYMENT UI
-========================================================= */
 
 function updatePaymentUI() {
 
@@ -1093,7 +1435,8 @@ function updatePaymentUI() {
         getCartTotal();
 
     const change =
-        payment - total;
+        payment -
+        total;
 
 
     const changeElement =
@@ -1110,21 +1453,26 @@ function updatePaymentUI() {
 
         changeElement.textContent =
             formatRupiah(
-                Math.max(0, change)
+                Math.max(
+                    0,
+                    change
+                )
             );
 
     }
 
 
-    if (!payButton) {
-        return;
+    if (
+        payButton
+    ) {
+
+        payButton.disabled =
+            state.cart.length === 0 ||
+            total <= 0 ||
+            payment < total ||
+            state.isSaving;
+
     }
-
-
-    payButton.disabled =
-        state.cart.length === 0 ||
-        payment < total ||
-        total <= 0;
 
 
     if (message) {
@@ -1142,7 +1490,8 @@ function updatePaymentUI() {
 
         } else {
 
-            message.textContent = "";
+            message.textContent =
+                "";
 
         }
 
@@ -1159,14 +1508,18 @@ function clearCart() {
 
     state.cart = [];
 
+
     const payment =
         $("paymentAmount");
+
 
     if (payment) {
         payment.value = "";
     }
 
+
     renderCart();
+
     renderMenus();
 
 }
@@ -1181,16 +1534,23 @@ function openMenuModal() {
     const modal =
         $("menuModal");
 
+
     if (!modal) {
         return;
     }
 
-    modal.hidden = false;
+
+    modal.hidden =
+        false;
+
 
     modal.setAttribute(
         "aria-hidden",
         "false"
     );
+
+
+    resetMenuForm();
 
     renderManagedMenus();
 
@@ -1202,16 +1562,21 @@ function closeMenuModal() {
     const modal =
         $("menuModal");
 
+
     if (!modal) {
         return;
     }
 
-    modal.hidden = true;
+
+    modal.hidden =
+        true;
+
 
     modal.setAttribute(
         "aria-hidden",
         "true"
     );
+
 
     resetMenuForm();
 
@@ -1224,7 +1589,8 @@ function closeMenuModal() {
 
 function resetMenuForm() {
 
-    state.editingMenuId = null;
+    state.editingMenuId =
+        null;
 
 
     const form =
@@ -1245,29 +1611,43 @@ function resetMenuForm() {
     const message =
         $("menuFormMessage");
 
+    const title =
+        $("menuModalTitle");
+
 
     if (form) {
         form.reset();
     }
 
+
     if (id) {
         id.value = "";
     }
+
 
     if (name) {
         name.value = "";
     }
 
+
     if (category) {
         category.value = "";
     }
+
 
     if (price) {
         price.value = "";
     }
 
+
     if (message) {
         message.textContent = "";
+    }
+
+
+    if (title) {
+        title.textContent =
+            "KELOLA MENU";
     }
 
 }
@@ -1277,11 +1657,15 @@ function resetMenuForm() {
    EDIT MENU
 ========================================================= */
 
-function editMenu(menuId) {
+function editMenu(
+    menuId
+) {
 
     const menu =
         state.menus.find(
-            item => item.id === menuId
+            item =>
+                item.id ===
+                menuId
         );
 
 
@@ -1297,34 +1681,229 @@ function editMenu(menuId) {
     $("menuId").value =
         menu.id;
 
+
     $("menuName").value =
         menu.name;
 
+
     $("menuCategory").value =
         menu.category || "";
+
 
     $("menuPrice").value =
         menu.price;
 
 
-    $("menuModalTitle").textContent =
-        "EDIT MENU";
+    if (
+        $("menuModalTitle")
+    ) {
+
+        $("menuModalTitle")
+            .textContent =
+                "EDIT MENU";
+
+    }
 
 
-    $("menuName").focus();
+    $("menuName")
+        ?.focus();
 
 }
 
 
 /* =========================================================
-   DELETE MENU
+   SAVE MENU KE GOOGLE SHEETS
 ========================================================= */
 
-function deleteMenu(menuId) {
+async function saveMenu(
+    event
+) {
+
+    event.preventDefault();
+
+
+    const name =
+        $("menuName")
+            ?.value
+            .trim();
+
+
+    const category =
+        $("menuCategory")
+            ?.value
+            .trim() ||
+        "";
+
+
+    const price =
+        Number(
+            $("menuPrice")
+                ?.value
+        );
+
+
+    const message =
+        $("menuFormMessage");
+
+
+    if (!name) {
+
+        if (message) {
+            message.textContent =
+                "Nama menu wajib diisi.";
+        }
+
+        return;
+
+    }
+
+
+    if (
+        !Number.isFinite(
+            price
+        ) ||
+        price < 0
+    ) {
+
+        if (message) {
+            message.textContent =
+                "Harga menu tidak valid.";
+        }
+
+        return;
+
+    }
+
+
+    if (message) {
+        message.textContent =
+            "Menyimpan ke Google Sheets...";
+    }
+
+
+    try {
+
+        if (
+            state.editingMenuId
+        ) {
+
+            await googleRequest({
+
+                action:
+                    "updateMenu",
+
+                menu: {
+
+                    id:
+                        state.editingMenuId,
+
+                    name:
+                        name,
+
+                    category:
+                        category,
+
+                    price:
+                        price
+
+                }
+
+            });
+
+
+            showNotification(
+                "Menu berhasil diperbarui di Google Sheets.",
+                "success"
+            );
+
+        } else {
+
+            await googleRequest({
+
+                action:
+                    "saveMenu",
+
+                menu: {
+
+                    id:
+                        generateId(
+                            "menu"
+                        ),
+
+                    name:
+                        name,
+
+                    category:
+                        category,
+
+                    price:
+                        price
+
+                }
+
+            });
+
+
+            showNotification(
+                "Menu berhasil ditambahkan ke Google Sheets.",
+                "success"
+            );
+
+        }
+
+
+        resetMenuForm();
+
+        await loadMenusFromGoogleSheets();
+
+        renderManagedMenus();
+
+        renderMenus();
+
+        renderCategories();
+
+
+    } catch (error) {
+
+        console.error(
+            "Gagal menyimpan menu:",
+            error
+        );
+
+
+        if (message) {
+
+            message.textContent =
+                error.message ||
+                "Gagal menyimpan menu.";
+
+        }
+
+
+        showNotification(
+            error.message ||
+            "Gagal menyimpan menu ke Google Sheets.",
+            "error"
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   DELETE MENU DARI GOOGLE SHEETS
+========================================================= */
+
+async function deleteMenu(
+    menuId
+) {
 
     const menu =
         state.menus.find(
-            item => item.id === menuId
+            item =>
+                item.id ===
+                menuId
         );
 
 
@@ -1335,7 +1914,7 @@ function deleteMenu(menuId) {
 
     const confirmed =
         window.confirm(
-            `Hapus menu "${menu.name}"?`
+            `Hapus menu "${menu.name}" dari Google Sheets?`
         );
 
 
@@ -1344,199 +1923,64 @@ function deleteMenu(menuId) {
     }
 
 
-    state.menus =
-        state.menus.filter(
-            item => item.id !== menuId
-        );
+    try {
+
+        await googleRequest({
+
+            action:
+                "deleteMenu",
+
+            menuId:
+                menuId
+
+        });
 
 
-    /*
-     * Jika menu sedang berada di keranjang,
-     * ikut dihapus dari keranjang.
-     */
+        /*
+         * Kalau sedang ada di keranjang,
+         * hapus juga dari keranjang.
+         */
 
-    state.cart =
-        state.cart.filter(
-            item => item.menuId !== menuId
-        );
-
-
-    saveMenusLocal();
-
-    renderMenus();
-    renderCategories();
-    renderCart();
-    renderManagedMenus();
-
-
-    showNotification(
-        "Menu berhasil dihapus.",
-        "success"
-    );
-
-}
-
-
-/* =========================================================
-   SAVE MENU
-========================================================= */
-
-function saveMenu(event) {
-
-    event.preventDefault();
-
-
-    const name =
-        $("menuName")
-            .value
-            .trim();
-
-    const category =
-        $("menuCategory")
-            .value
-            .trim();
-
-    const price =
-        Number(
-            $("menuPrice").value
-        );
-
-
-    const message =
-        $("menuFormMessage");
-
-
-    if (!name) {
-
-        message.textContent =
-            "Nama menu wajib diisi.";
-
-        return;
-    }
-
-
-    if (
-        !Number.isFinite(price) ||
-        price < 0
-    ) {
-
-        message.textContent =
-            "Harga menu tidak valid.";
-
-        return;
-    }
-
-
-    /*
-     * EDIT
-     */
-
-    if (state.editingMenuId) {
-
-        const menu =
-            state.menus.find(
+        state.cart =
+            state.cart.filter(
                 item =>
-                    item.id ===
-                    state.editingMenuId
+                    item.menuId !==
+                    menuId
             );
 
 
-        if (menu) {
+        await loadMenusFromGoogleSheets();
 
-            menu.name =
-                name;
+        renderCart();
 
-            menu.category =
-                category;
+        renderMenus();
 
-            menu.price =
-                price;
+        renderCategories();
 
-            /*
-             * Update data di keranjang
-             * jika menu sedang dipesan.
-             */
-
-            state.cart.forEach(
-                cartItem => {
-
-                    if (
-                        cartItem.menuId ===
-                        menu.id
-                    ) {
-
-                        cartItem.name =
-                            name;
-
-                        cartItem.category =
-                            category;
-
-                        cartItem.price =
-                            price;
-
-                    }
-
-                }
-            );
-
-        }
+        renderManagedMenus();
 
 
         showNotification(
-            "Menu berhasil diperbarui.",
+            "Menu berhasil dihapus dari Google Sheets.",
             "success"
         );
 
-    }
 
-    /*
-     * TAMBAH
-     */
+    } catch (error) {
 
-    else {
-
-        const newMenu = {
-
-            id:
-                generateId("menu"),
-
-            name:
-                name,
-
-            category:
-                category,
-
-            price:
-                price
-
-        };
-
-
-        state.menus.push(
-            newMenu
+        console.error(
+            "Gagal menghapus menu:",
+            error
         );
 
 
         showNotification(
-            "Menu berhasil ditambahkan.",
-            "success"
+            error.message ||
+            "Gagal menghapus menu.",
+            "error"
         );
 
     }
-
-
-    saveMenusLocal();
-
-    resetMenuForm();
-
-    $("menuModalTitle").textContent =
-        "KELOLA MENU";
-
-
-    renderMenus();
-    renderCategories();
-    renderCart();
-    renderManagedMenus();
 
 }
 
@@ -1562,147 +2006,135 @@ function renderManagedMenus() {
     list.innerHTML = "";
 
 
-    if (state.menus.length === 0) {
+    if (
+        state.menus.length === 0
+    ) {
 
         if (empty) {
-            empty.style.display = "";
+            empty.style.display =
+                "";
         }
 
         return;
+
     }
 
 
     if (empty) {
-        empty.style.display = "none";
+        empty.style.display =
+            "none";
     }
 
 
-    state.menus.forEach(menu => {
+    state.menus.forEach(
+        menu => {
 
-        const item =
-            document.createElement("div");
+            const item =
+                document.createElement(
+                    "div"
+                );
 
-        item.className =
-            "managed-menu-item";
+
+            item.className =
+                "managed-menu-item";
 
 
-        item.innerHTML = `
+            item.innerHTML = `
 
-            <div class="managed-menu-info">
+                <div class="managed-menu-info">
 
-                <div class="managed-menu-name">
-                    ${escapeHtml(menu.name)}
+                    <div class="managed-menu-name">
+                        ${escapeHtml(
+                            menu.name
+                        )}
+                    </div>
+
+                    <div class="managed-menu-price">
+                        ${formatRupiah(
+                            menu.price
+                        )}
+                        ${
+                            menu.category
+                                ? " • " +
+                                  escapeHtml(
+                                      menu.category
+                                  )
+                                : ""
+                        }
+                    </div>
+
                 </div>
 
-                <div class="managed-menu-price">
-                    ${formatRupiah(menu.price)}
-                    ${
-                        menu.category
-                            ? " • " +
-                              escapeHtml(
-                                  menu.category
-                              )
-                            : ""
-                    }
+
+                <div class="managed-menu-actions">
+
+                    <button
+                        type="button"
+                        class="menu-edit-button"
+                        data-id="${menu.id}"
+                    >
+                        EDIT
+                    </button>
+
+                    <button
+                        type="button"
+                        class="menu-delete-button"
+                        data-id="${menu.id}"
+                    >
+                        HAPUS
+                    </button>
+
                 </div>
 
-            </div>
+            `;
 
 
-            <div class="managed-menu-actions">
+            list.appendChild(
+                item
+            );
 
-                <button
-                    type="button"
-                    class="menu-edit-button"
-                    data-id="${menu.id}"
-                >
-                    EDIT
-                </button>
-
-                <button
-                    type="button"
-                    class="menu-delete-button"
-                    data-id="${menu.id}"
-                >
-                    HAPUS
-                </button>
-
-            </div>
-        `;
-
-
-        list.appendChild(item);
-
-    });
+        }
+    );
 
 
     list.querySelectorAll(
         ".menu-edit-button"
-    ).forEach(button => {
+    ).forEach(
+        button => {
 
-        button.addEventListener(
-            "click",
-            () => {
+            button.addEventListener(
+                "click",
+                () => {
 
-                editMenu(
-                    button.dataset.id
-                );
+                    editMenu(
+                        button.dataset.id
+                    );
 
-            }
-        );
+                }
+            );
 
-    });
+        }
+    );
 
 
     list.querySelectorAll(
         ".menu-delete-button"
-    ).forEach(button => {
+    ).forEach(
+        button => {
 
-        button.addEventListener(
-            "click",
-            () => {
+            button.addEventListener(
+                "click",
+                () => {
 
-                deleteMenu(
-                    button.dataset.id
-                );
+                    deleteMenu(
+                        button.dataset.id
+                    );
 
-            }
-        );
+                }
+            );
 
-    });
-
-}
-
-
-/* =========================================================
-   TRANSACTION NUMBER
-========================================================= */
-
-function getNextTransactionNumber() {
-
-    let number =
-        Number(
-            localStorage.getItem(
-                STORAGE_KEYS.transactionNumber
-            )
-        ) || 0;
-
-
-    number += 1;
-
-
-    localStorage.setItem(
-        STORAGE_KEYS.transactionNumber,
-        String(number)
+        }
     );
-
-
-    const date =
-        getTodayKey()
-            .replaceAll("-", "");
-
-
-    return `${date}-${String(number).padStart(4, "0")}`;
 
 }
 
@@ -1720,10 +2152,13 @@ function createSale() {
         getPaymentAmount();
 
     const change =
-        payment - total;
+        payment -
+        total;
 
 
-    if (state.cart.length === 0) {
+    if (
+        state.cart.length === 0
+    ) {
 
         throw new Error(
             "Keranjang masih kosong."
@@ -1732,7 +2167,20 @@ function createSale() {
     }
 
 
-    if (payment < total) {
+    if (
+        total <= 0
+    ) {
+
+        throw new Error(
+            "Total transaksi tidak valid."
+        );
+
+    }
+
+
+    if (
+        payment < total
+    ) {
 
         throw new Error(
             "Uang pembayaran masih kurang."
@@ -1745,13 +2193,15 @@ function createSale() {
         new Date();
 
 
-    const sale = {
+    return {
 
         id:
-            generateId("sale"),
+            generateId(
+                "sale"
+            ),
 
         transactionNumber:
-            getNextTransactionNumber(),
+            generateTransactionNumber(),
 
         dateKey:
             getTodayKey(),
@@ -1760,28 +2210,38 @@ function createSale() {
             now.toISOString(),
 
         items:
-            state.cart.map(item => ({
+            state.cart.map(
+                item => ({
 
-                menuId:
-                    item.menuId,
+                    menuId:
+                        item.menuId,
 
-                name:
-                    item.name,
+                    name:
+                        item.name,
 
-                category:
-                    item.category || "",
+                    category:
+                        item.category || "",
 
-                price:
-                    Number(item.price),
+                    price:
+                        Number(
+                            item.price
+                        ),
 
-                quantity:
-                    Number(item.quantity),
+                    quantity:
+                        Number(
+                            item.quantity
+                        ),
 
-                subtotal:
-                    Number(item.price) *
-                    Number(item.quantity)
+                    subtotal:
+                        Number(
+                            item.price
+                        ) *
+                        Number(
+                            item.quantity
+                        )
 
-            })),
+                })
+            ),
 
         total:
             total,
@@ -1794,8 +2254,74 @@ function createSale() {
 
     };
 
+}
 
-    return sale;
+
+/* =========================================================
+   NOMOR TRANSAKSI
+   ---------------------------------------------------------
+   Nomor dibuat berdasarkan waktu.
+   Database transaksi tetap Google Sheets.
+========================================================= */
+
+function generateTransactionNumber() {
+
+    const now =
+        new Date();
+
+
+    const date =
+        getTodayKey()
+            .replaceAll(
+                "-",
+                ""
+            );
+
+
+    const hour =
+        String(
+            now.getHours()
+        ).padStart(
+            2,
+            "0"
+        );
+
+
+    const minute =
+        String(
+            now.getMinutes()
+        ).padStart(
+            2,
+            "0"
+        );
+
+
+    const second =
+        String(
+            now.getSeconds()
+        ).padStart(
+            2,
+            "0"
+        );
+
+
+    const random =
+        Math.floor(
+            Math.random() *
+            100
+        )
+        .toString()
+        .padStart(
+            2,
+            "0"
+        );
+
+
+    return (
+        `${date}-` +
+        `${hour}${minute}${second}-` +
+        `${random}`
+    );
 
 }
 
@@ -1806,76 +2332,52 @@ function createSale() {
 
 async function processPayment() {
 
-    if (state.isSaving) {
+    if (
+        state.isSaving
+    ) {
         return;
     }
 
 
+    let sale;
+
+
     try {
 
-        const sale =
+        sale =
             createSale();
 
 
-        state.isSaving = true;
+    } catch (error) {
 
-
-        $("payButton").disabled = true;
-
-
-        /*
-         * Simpan lokal dulu.
-         * Jadi transaksi tidak hilang
-         * kalau koneksi Google Sheets bermasalah.
-         */
-
-        state.todaySales.push(
-            sale
+        showNotification(
+            error.message,
+            "error"
         );
 
-        saveTodaySalesLocal();
+        return;
 
+    }
+
+
+    state.isSaving =
+        true;
+
+
+    updatePaymentUI();
+
+
+    try {
 
         /*
-         * Kirim ke Google Sheets
-         * kalau URL sudah diisi.
+         * LANGSUNG KE GOOGLE SHEETS.
+         *
+         * Tidak disimpan ke localStorage.
          */
 
-        if (GOOGLE_SCRIPT_URL) {
-
-            try {
-
-                await saveSaleToGoogleSheets(
-                    sale
-                );
-
-                setConnectionStatus(
-                    "online",
-                    "Google Sheets tersambung"
-                );
-
-            } catch (error) {
-
-                console.error(
-                    "Google Sheets error:",
-                    error
-                );
-
-
-                setConnectionStatus(
-                    "offline",
-                    "Gagal sinkron ke Google Sheets"
-                );
-
-
-                showNotification(
-                    "Transaksi tersimpan di aplikasi, tetapi belum masuk Google Sheets.",
-                    "warning"
-                );
-
-            }
-
-        }
+        await saveSaleToGoogleSheets(
+            sale
+        );
 
 
         state.lastCompletedSale =
@@ -1883,21 +2385,35 @@ async function processPayment() {
 
 
         /*
-         * Bersihkan keranjang
+         * Setelah berhasil disimpan,
+         * ambil ulang history dari Google Sheets.
+         */
+
+        await loadTodaySalesFromGoogleSheets();
+
+
+        /*
+         * Kosongkan keranjang.
          */
 
         clearCart();
 
 
+        setConnectionStatus(
+            "online",
+            "Google Sheets tersambung"
+        );
+
+
+        showNotification(
+            "Pembayaran berhasil disimpan ke Google Sheets.",
+            "success"
+        );
+
+
         /*
-         * Update history
-         */
-
-        renderSalesHistory();
-
-
-        /*
-         * Buka pilihan PRINT
+         * Tampilkan pilihan:
+         * PRINT atau TIDAK PRINT.
          */
 
         openPaymentSuccessModal(
@@ -1907,17 +2423,34 @@ async function processPayment() {
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "Pembayaran gagal:",
+            error
+        );
+
+
+        setConnectionStatus(
+            "offline",
+            "Gagal menyimpan ke Google Sheets"
+        );
+
+
+        /*
+         * PENTING:
+         * Keranjang TIDAK dikosongkan jika
+         * transaksi gagal dikirim.
+         */
 
         showNotification(
             error.message ||
-            "Pembayaran gagal.",
+            "Transaksi gagal disimpan ke Google Sheets.",
             "error"
         );
 
     } finally {
 
-        state.isSaving = false;
+        state.isSaving =
+            false;
 
         updatePaymentUI();
 
@@ -1927,44 +2460,23 @@ async function processPayment() {
 
 
 /* =========================================================
-   GOOGLE SHEETS
+   SAVE SALE GOOGLE SHEETS
 ========================================================= */
 
 async function saveSaleToGoogleSheets(
     sale
 ) {
 
-    const response =
-        await fetch(
-            GOOGLE_SCRIPT_URL,
-            {
-                method: "POST",
-
-                headers: {
-                    "Content-Type":
-                        "text/plain;charset=utf-8"
-                },
-
-                body:
-                    JSON.stringify({
-                        action: "saveSale",
-                        sale: sale
-                    })
-            }
-        );
-
-
-    if (!response.ok) {
-
-        throw new Error(
-            "Server Google Sheets mengembalikan error."
-        );
-
-    }
-
-
     const result =
-        await response.json();
+        await googleRequest({
+
+            action:
+                "saveSale",
+
+            sale:
+                sale
+
+        });
 
 
     if (
@@ -1974,13 +2486,268 @@ async function saveSaleToGoogleSheets(
 
         throw new Error(
             result.message ||
-            "Google Sheets menolak transaksi."
+            "Transaksi ditolak Google Sheets."
         );
 
     }
 
 
     return result;
+
+}
+
+
+/* =========================================================
+   LOAD SALES HARI INI
+========================================================= */
+
+async function loadTodaySalesFromGoogleSheets() {
+
+    if (
+        state.isLoadingSales
+    ) {
+        return;
+    }
+
+
+    state.isLoadingSales =
+        true;
+
+
+    try {
+
+        const today =
+            getTodayKey();
+
+
+        const result =
+            await googleRequest(
+                {
+                    action:
+                        "getTodaySales",
+
+                    dateKey:
+                        today
+
+                },
+                "GET"
+            );
+
+
+        const sales =
+            Array.isArray(
+                result.sales
+            )
+                ? result.sales
+                : [];
+
+
+        state.todaySales =
+            normalizeSales(
+                sales
+            );
+
+
+        renderSalesHistory();
+
+
+        setConnectionStatus(
+            "online",
+            "Google Sheets tersambung"
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Gagal mengambil penjualan:",
+            error
+        );
+
+
+        state.todaySales =
+            [];
+
+
+        renderSalesHistory();
+
+
+        setConnectionStatus(
+            "offline",
+            "Gagal mengambil riwayat Google Sheets"
+        );
+
+
+        showNotification(
+            error.message ||
+            "Gagal mengambil riwayat penjualan.",
+            "error"
+        );
+
+
+    } finally {
+
+        state.isLoadingSales =
+            false;
+
+    }
+
+}
+
+
+/* =========================================================
+   NORMALIZE SALES
+========================================================= */
+
+function normalizeSales(
+    sales
+) {
+
+    return sales.map(
+        sale => {
+
+            let items =
+                sale.items;
+
+
+            if (
+                typeof items ===
+                "string"
+            ) {
+
+                try {
+
+                    items =
+                        JSON.parse(
+                            items
+                        );
+
+                } catch (
+                    error
+                ) {
+
+                    items = [];
+
+                }
+
+            }
+
+
+            if (
+                !Array.isArray(
+                    items
+                )
+            ) {
+
+                items = [];
+
+            }
+
+
+            return {
+
+                id:
+                    String(
+                        sale.id ??
+                        ""
+                    ),
+
+                transactionNumber:
+                    String(
+                        sale.transactionNumber ??
+                        sale.noTransaksi ??
+                        sale.no_transaksi ??
+                        ""
+                    ),
+
+                dateKey:
+                    String(
+                        sale.dateKey ??
+                        sale.tanggal ??
+                        getTodayKey()
+                    )
+                        .slice(
+                            0,
+                            10
+                        ),
+
+                date:
+                    sale.date ||
+                    sale.timestamp ||
+                    new Date()
+                        .toISOString(),
+
+                items:
+                    items.map(
+                        item => ({
+
+                            menuId:
+                                String(
+                                    item.menuId ??
+                                    ""
+                                ),
+
+                            name:
+                                String(
+                                    item.name ??
+                                    item.nama ??
+                                    ""
+                                ),
+
+                            category:
+                                String(
+                                    item.category ??
+                                    item.kategori ??
+                                    ""
+                                ),
+
+                            price:
+                                Number(
+                                    item.price ??
+                                    item.harga ??
+                                    0
+                                ),
+
+                            quantity:
+                                Number(
+                                    item.quantity ??
+                                    item.jumlah ??
+                                    0
+                                ),
+
+                            subtotal:
+                                Number(
+                                    item.subtotal ??
+                                    0
+                                )
+
+                        })
+                    ),
+
+                total:
+                    Number(
+                        sale.total ??
+                        0
+                    ),
+
+                payment:
+                    Number(
+                        sale.payment ??
+                        sale.pembayaran ??
+                        0
+                    ),
+
+                change:
+                    Number(
+                        sale.change ??
+                        sale.kembalian ??
+                        0
+                    )
+
+            };
+
+        }
+    );
 
 }
 
@@ -1993,34 +2760,68 @@ function openPaymentSuccessModal(
     sale
 ) {
 
-    $("successTransactionNumber")
-        .textContent =
-            sale.transactionNumber;
+    if (
+        $("successTransactionNumber")
+    ) {
 
-    $("successTotal")
-        .textContent =
-            formatRupiah(
-                sale.total
-            );
+        $("successTransactionNumber")
+            .textContent =
+                sale.transactionNumber;
 
-    $("successPayment")
-        .textContent =
-            formatRupiah(
-                sale.payment
-            );
+    }
 
-    $("successChange")
-        .textContent =
-            formatRupiah(
-                sale.change
-            );
+
+    if (
+        $("successTotal")
+    ) {
+
+        $("successTotal")
+            .textContent =
+                formatRupiah(
+                    sale.total
+                );
+
+    }
+
+
+    if (
+        $("successPayment")
+    ) {
+
+        $("successPayment")
+            .textContent =
+                formatRupiah(
+                    sale.payment
+                );
+
+    }
+
+
+    if (
+        $("successChange")
+    ) {
+
+        $("successChange")
+            .textContent =
+                formatRupiah(
+                    sale.change
+                );
+
+    }
 
 
     const modal =
         $("paymentSuccessModal");
 
 
-    modal.hidden = false;
+    if (!modal) {
+        return;
+    }
+
+
+    modal.hidden =
+        false;
+
 
     modal.setAttribute(
         "aria-hidden",
@@ -2036,7 +2837,14 @@ function closePaymentSuccessModal() {
         $("paymentSuccessModal");
 
 
-    modal.hidden = true;
+    if (!modal) {
+        return;
+    }
+
+
+    modal.hidden =
+        true;
+
 
     modal.setAttribute(
         "aria-hidden",
@@ -2059,118 +2867,196 @@ function printReceipt(
     }
 
 
+    /*
+     * Support #printArea
+     * dan #printReceipt.
+     */
+
     const printArea =
-        $("printArea");
+        $("printArea") ||
+        $("printReceipt");
 
 
     if (!printArea) {
+
+        showNotification(
+            "Area struk tidak ditemukan di HTML.",
+            "error"
+        );
+
         return;
+
     }
 
 
     const itemsHtml =
         sale.items
-            .map(item => {
+            .map(
+                item => `
 
-                return `
                     <div class="receipt-item">
-                        <div>
-                            ${escapeHtml(item.name)}
+
+                        <div class="receipt-item-name">
+                            ${escapeHtml(
+                                item.name
+                            )}
                         </div>
 
-                        <div>
-                            ${item.quantity}
-                            x
-                            ${formatRupiah(item.price)}
+                        <div class="receipt-item-detail">
+
+                            <span>
+                                ${formatNumber(
+                                    item.quantity
+                                )}
+                                ×
+                                ${formatRupiah(
+                                    item.price
+                                )}
+                            </span>
+
+                            <strong>
+                                ${formatRupiah(
+                                    item.subtotal
+                                )}
+                            </strong>
+
                         </div>
 
-                        <div>
-                            ${formatRupiah(item.subtotal)}
-                        </div>
                     </div>
-                `;
 
-            })
+                `
+            )
             .join("");
 
 
     printArea.innerHTML = `
 
-        <div class="thermal-receipt">
+        <div class="receipt-header">
 
-            <div class="receipt-center">
-                <strong>KASIR</strong>
-            </div>
-
-
-            <div class="receipt-center">
-                ${formatDateTimeIndonesia(
-                    sale.date
-                )}
-            </div>
-
-
-            <div class="receipt-center">
-                ${escapeHtml(
-                    sale.transactionNumber
-                )}
-            </div>
-
-
-            <div class="receipt-line">
-                --------------------------------
-            </div>
-
-
-            ${itemsHtml}
-
-
-            <div class="receipt-line">
-                --------------------------------
-            </div>
-
-
-            <div class="receipt-total">
-                <span>TOTAL</span>
-                <strong>
-                    ${formatRupiah(sale.total)}
-                </strong>
-            </div>
-
-
-            <div class="receipt-total">
-                <span>BAYAR</span>
-                <strong>
-                    ${formatRupiah(sale.payment)}
-                </strong>
-            </div>
-
-
-            <div class="receipt-total">
-                <span>KEMBALI</span>
-                <strong>
-                    ${formatRupiah(sale.change)}
-                </strong>
-            </div>
-
-
-            <div class="receipt-line">
-                --------------------------------
-            </div>
-
-
-            <div class="receipt-center">
-                TERIMA KASIH
+            <div class="receipt-store-name">
+                KASIR
             </div>
 
         </div>
+
+
+        <div class="receipt-info">
+
+            <div class="receipt-info-row">
+
+                <span>
+                    Tanggal
+                </span>
+
+                <span>
+                    ${formatDateTimeIndonesia(
+                        sale.date
+                    )}
+                </span>
+
+            </div>
+
+
+            <div class="receipt-info-row">
+
+                <span>
+                    No. Transaksi
+                </span>
+
+                <span>
+                    ${escapeHtml(
+                        sale.transactionNumber
+                    )}
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <div class="receipt-line"></div>
+
+
+        <div class="receipt-items">
+
+            ${itemsHtml}
+
+        </div>
+
+
+        <div class="receipt-line"></div>
+
+
+        <div class="receipt-total-section">
+
+            <div class="receipt-total-row">
+
+                <span class="receipt-total-label">
+                    TOTAL
+                </span>
+
+                <span class="receipt-total-value">
+                    ${formatRupiah(
+                        sale.total
+                    )}
+                </span>
+
+            </div>
+
+
+            <div class="receipt-total-row">
+
+                <span class="receipt-total-label">
+                    BAYAR
+                </span>
+
+                <span class="receipt-total-value">
+                    ${formatRupiah(
+                        sale.payment
+                    )}
+                </span>
+
+            </div>
+
+
+            <div class="receipt-total-row receipt-change">
+
+                <span class="receipt-total-label">
+                    KEMBALI
+                </span>
+
+                <span class="receipt-total-value">
+                    ${formatRupiah(
+                        sale.change
+                    )}
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <div class="receipt-footer">
+
+            <div class="receipt-footer-title">
+                TERIMA KASIH
+            </div>
+
+            <div class="receipt-footer-message">
+                Selamat datang kembali
+            </div>
+
+        </div>
+
     `;
 
 
     /*
-     * Print menggunakan browser.
-     * print.css akan mengatur agar yang
-     * keluar hanya struk.
+     * Browser akan menampilkan
+     * dialog printer.
+     *
+     * Kalau user menekan CANCEL:
+     * transaksi tetap aman di Google Sheets.
      */
 
     window.print();
@@ -2209,30 +3095,38 @@ function renderSalesHistory() {
         getTodayKey();
 
 
-    state.todaySales =
+    const sales =
         state.todaySales.filter(
             sale =>
-                sale.dateKey === today
+                sale.dateKey ===
+                today
         );
 
 
-    saveTodaySalesLocal();
+    state.todaySales =
+        sales;
 
 
     if (count) {
 
         count.textContent =
             formatNumber(
-                state.todaySales.length
+                sales.length
             );
 
     }
 
 
     const salesTotal =
-        state.todaySales.reduce(
-            (sum, sale) =>
-                sum + Number(sale.total),
+        sales.reduce(
+            (
+                sum,
+                sale
+            ) =>
+                sum +
+                Number(
+                    sale.total
+                ),
             0
         );
 
@@ -2247,18 +3141,23 @@ function renderSalesHistory() {
     }
 
 
-    if (state.todaySales.length === 0) {
+    if (
+        sales.length === 0
+    ) {
 
         if (empty) {
-            empty.style.display = "";
+            empty.style.display =
+                "";
         }
 
         return;
+
     }
 
 
     if (empty) {
-        empty.style.display = "none";
+        empty.style.display =
+            "none";
     }
 
 
@@ -2266,72 +3165,90 @@ function renderSalesHistory() {
      * Terbaru di atas.
      */
 
-    const sales =
-        [...state.todaySales]
-            .reverse();
+    [...sales]
+        .reverse()
+        .forEach(
+            sale => {
+
+                const item =
+                    document.createElement(
+                        "div"
+                    );
 
 
-    sales.forEach(sale => {
-
-        const item =
-            document.createElement("div");
-
-        item.className =
-            "sale-item";
+                item.className =
+                    "sale-item";
 
 
-        const itemCount =
-            sale.items.reduce(
-                (sum, item) =>
-                    sum +
-                    Number(item.quantity),
-                0
-            );
+                const itemCount =
+                    sale.items.reduce(
+                        (
+                            sum,
+                            cartItem
+                        ) =>
+                            sum +
+                            Number(
+                                cartItem.quantity
+                            ),
+                        0
+                    );
 
 
-        item.innerHTML = `
+                item.innerHTML = `
 
-            <div class="sale-item-header">
+                    <div class="sale-item-header">
 
-                <div class="sale-item-number">
-                    ${escapeHtml(
-                        sale.transactionNumber
-                    )}
-                </div>
+                        <div class="sale-item-number">
+                            ${escapeHtml(
+                                sale.transactionNumber
+                            )}
+                        </div>
 
-                <div class="sale-item-total">
-                    ${formatRupiah(
-                        sale.total
-                    )}
-                </div>
+                        <div class="sale-item-total">
+                            ${formatRupiah(
+                                sale.total
+                            )}
+                        </div>
 
-            </div>
-
-
-            <div class="sale-item-info">
-
-                ${formatDateTimeIndonesia(
-                    sale.date
-                )}
-
-                •
-                ${formatNumber(itemCount)}
-                item
-
-            </div>
-
-        `;
+                    </div>
 
 
-        item.addEventListener(
-            "click",
-            () => openSaleDetail(sale)
+                    <div class="sale-item-info">
+
+                        ${formatDateTimeIndonesia(
+                            sale.date
+                        )}
+
+                        •
+
+                        ${formatNumber(
+                            itemCount
+                        )}
+                        item
+
+                    </div>
+
+                `;
+
+
+                item.addEventListener(
+                    "click",
+                    () => {
+
+                        openSaleDetail(
+                            sale
+                        );
+
+                    }
+                );
+
+
+                list.appendChild(
+                    item
+                );
+
+            }
         );
-
-
-        list.appendChild(item);
-
-    });
 
 }
 
@@ -2348,93 +3265,158 @@ function openSaleDetail(
         sale;
 
 
-    $("saleDetailTransactionNumber")
-        .textContent =
-            sale.transactionNumber;
+    if (
+        $("saleDetailTransactionNumber")
+    ) {
+
+        $("saleDetailTransactionNumber")
+            .textContent =
+                sale.transactionNumber;
+
+    }
 
 
     const content =
         $("saleDetailContent");
 
 
+    if (!content) {
+        return;
+    }
+
+
     content.innerHTML = "";
 
 
-    sale.items.forEach(item => {
+    sale.items.forEach(
+        item => {
 
-        const row =
-            document.createElement("div");
-
-        row.className =
-            "sale-detail-row";
-
-
-        row.innerHTML = `
-
-            <div class="sale-detail-name">
-
-                ${escapeHtml(item.name)}
-
-                <br>
-
-                <small>
-                    ${item.quantity}
-                    ×
-                    ${formatRupiah(item.price)}
-                </small>
-
-            </div>
+            const row =
+                document.createElement(
+                    "div"
+                );
 
 
-            <div class="sale-detail-value">
-                ${formatRupiah(item.subtotal)}
-            </div>
-
-        `;
+            row.className =
+                "sale-detail-row";
 
 
-        content.appendChild(row);
+            row.innerHTML = `
 
-    });
+                <div class="sale-detail-name">
+
+                    ${escapeHtml(
+                        item.name
+                    )}
+
+                    <br>
+
+                    <small>
+
+                        ${formatNumber(
+                            item.quantity
+                        )}
+                        ×
+                        ${formatRupiah(
+                            item.price
+                        )}
+
+                    </small>
+
+                </div>
+
+
+                <div class="sale-detail-value">
+
+                    ${formatRupiah(
+                        item.subtotal
+                    )}
+
+                </div>
+
+            `;
+
+
+            content.appendChild(
+                row
+            );
+
+        }
+    );
 
 
     const summary =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
+
 
     summary.innerHTML = `
 
         <div class="summary-row">
-            <span>TOTAL</span>
+
+            <span>
+                TOTAL
+            </span>
+
             <strong>
-                ${formatRupiah(sale.total)}
+                ${formatRupiah(
+                    sale.total
+                )}
             </strong>
+
         </div>
 
-        <div class="summary-row">
-            <span>BAYAR</span>
-            <strong>
-                ${formatRupiah(sale.payment)}
-            </strong>
-        </div>
 
         <div class="summary-row">
-            <span>KEMBALIAN</span>
+
+            <span>
+                BAYAR
+            </span>
+
             <strong>
-                ${formatRupiah(sale.change)}
+                ${formatRupiah(
+                    sale.payment
+                )}
             </strong>
+
+        </div>
+
+
+        <div class="summary-row">
+
+            <span>
+                KEMBALIAN
+            </span>
+
+            <strong>
+                ${formatRupiah(
+                    sale.change
+                )}
+            </strong>
+
         </div>
 
     `;
 
 
-    content.appendChild(summary);
+    content.appendChild(
+        summary
+    );
 
 
     const modal =
         $("saleDetailModal");
 
 
-    modal.hidden = false;
+    if (!modal) {
+        return;
+    }
+
+
+    modal.hidden =
+        false;
+
 
     modal.setAttribute(
         "aria-hidden",
@@ -2450,7 +3432,14 @@ function closeSaleDetail() {
         $("saleDetailModal");
 
 
-    modal.hidden = true;
+    if (!modal) {
+        return;
+    }
+
+
+    modal.hidden =
+        true;
+
 
     modal.setAttribute(
         "aria-hidden",
@@ -2466,145 +3455,191 @@ function closeSaleDetail() {
 
 /* =========================================================
    DOWNLOAD PENJUALAN HARI INI
+   ---------------------------------------------------------
+   Data berasal dari Google Sheets.
 ========================================================= */
 
-function downloadTodaySales() {
+async function downloadTodaySales() {
 
-    const today =
-        getTodayKey();
+    try {
 
+        /*
+         * Ambil data terbaru langsung dari Google Sheets.
+         */
 
-    const sales =
-        state.todaySales.filter(
-            sale =>
-                sale.dateKey === today
-        );
+        await loadTodaySalesFromGoogleSheets();
 
 
-    if (sales.length === 0) {
-
-        showNotification(
-            "Belum ada penjualan hari ini.",
-            "warning"
-        );
-
-        return;
-    }
+        const today =
+            getTodayKey();
 
 
-    /*
-     * Nama file menyertakan tanggal.
-     */
-
-    const filename =
-        `penjualan-${today}.csv`;
-
-
-    const rows = [];
+        const sales =
+            state.todaySales.filter(
+                sale =>
+                    sale.dateKey ===
+                    today
+            );
 
 
-    rows.push([
-        "Tanggal",
-        "No Transaksi",
-        "Menu",
-        "Kategori",
-        "Harga",
-        "Jumlah",
-        "Subtotal",
-        "Total Transaksi",
-        "Pembayaran",
-        "Kembalian"
-    ]);
+        if (
+            sales.length === 0
+        ) {
+
+            showNotification(
+                "Belum ada penjualan hari ini.",
+                "warning"
+            );
+
+            return;
+
+        }
 
 
-    sales.forEach(sale => {
-
-        sale.items.forEach(item => {
-
-            rows.push([
-                formatDateTimeIndonesia(
-                    sale.date
-                ),
-
-                sale.transactionNumber,
-
-                item.name,
-
-                item.category || "",
-
-                item.price,
-
-                item.quantity,
-
-                item.subtotal,
-
-                sale.total,
-
-                sale.payment,
-
-                sale.change
-            ]);
-
-        });
-
-    });
+        const rows = [];
 
 
-    const csv =
-        rows
-            .map(row =>
-                row.map(value =>
-                    csvEscape(value)
-                ).join(",")
-            )
-            .join("\r\n");
+        rows.push([
+            "Tanggal",
+            "No Transaksi",
+            "Menu",
+            "Kategori",
+            "Harga",
+            "Jumlah",
+            "Subtotal",
+            "Total Transaksi",
+            "Pembayaran",
+            "Kembalian"
+        ]);
 
 
-    /*
-     * BOM agar Excel membaca
-     * UTF-8 dengan benar.
-     */
+        sales.forEach(
+            sale => {
 
-    const blob =
-        new Blob(
-            [
-                "\uFEFF" + csv
-            ],
-            {
-                type:
-                    "text/csv;charset=utf-8;"
+                sale.items.forEach(
+                    item => {
+
+                        rows.push([
+
+                            formatDateTimeIndonesia(
+                                sale.date
+                            ),
+
+                            sale.transactionNumber,
+
+                            item.name,
+
+                            item.category ||
+                                "",
+
+                            item.price,
+
+                            item.quantity,
+
+                            item.subtotal,
+
+                            sale.total,
+
+                            sale.payment,
+
+                            sale.change
+
+                        ]);
+
+                    }
+                );
+
             }
         );
 
 
-    const url =
-        URL.createObjectURL(blob);
+        const csv =
+            rows
+                .map(
+                    row =>
+                        row
+                            .map(
+                                value =>
+                                    csvEscape(
+                                        value
+                                    )
+                            )
+                            .join(",")
+                )
+                .join(
+                    "\r\n"
+                );
 
 
-    const link =
-        document.createElement("a");
+        const blob =
+            new Blob(
+                [
+                    "\uFEFF" +
+                    csv
+                ],
+                {
+                    type:
+                        "text/csv;charset=utf-8;"
+                }
+            );
 
 
-    link.href = url;
-
-    link.download =
-        filename;
-
-
-    document.body.appendChild(link);
-
-    link.click();
-
-    link.remove();
+        const url =
+            URL.createObjectURL(
+                blob
+            );
 
 
-    URL.revokeObjectURL(url);
+        const link =
+            document.createElement(
+                "a"
+            );
 
 
-    showNotification(
-        `Penjualan ${today} berhasil didownload.`,
-        "success"
-    );
+        link.href =
+            url;
+
+
+        link.download =
+            `penjualan-${today}.csv`;
+
+
+        document.body.appendChild(
+            link
+        );
+
+
+        link.click();
+
+
+        link.remove();
+
+
+        URL.revokeObjectURL(
+            url
+        );
+
+
+        showNotification(
+            `Penjualan ${today} berhasil didownload.`,
+            "success"
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            error
+        );
+
+
+        showNotification(
+            error.message ||
+            "Gagal download penjualan.",
+            "error"
+        );
+
+    }
 
 }
 
@@ -2613,10 +3648,14 @@ function downloadTodaySales() {
    CSV ESCAPE
 ========================================================= */
 
-function csvEscape(value) {
+function csvEscape(
+    value
+) {
 
     const text =
-        String(value ?? "");
+        String(
+            value ?? ""
+        );
 
 
     if (
@@ -2643,7 +3682,7 @@ function csvEscape(value) {
 
 
 /* =========================================================
-   RESET SALES MODAL
+   RESET MODAL
 ========================================================= */
 
 function openResetModal() {
@@ -2652,11 +3691,25 @@ function openResetModal() {
         $("resetModal");
 
 
-    $("resetMessage")
-        .textContent = "";
+    if (!modal) {
+        return;
+    }
 
 
-    modal.hidden = false;
+    if (
+        $("resetMessage")
+    ) {
+
+        $("resetMessage")
+            .textContent =
+                "";
+
+    }
+
+
+    modal.hidden =
+        false;
+
 
     modal.setAttribute(
         "aria-hidden",
@@ -2672,7 +3725,14 @@ function closeResetModal() {
         $("resetModal");
 
 
-    modal.hidden = true;
+    if (!modal) {
+        return;
+    }
+
+
+    modal.hidden =
+        true;
+
 
     modal.setAttribute(
         "aria-hidden",
@@ -2685,13 +3745,12 @@ function closeResetModal() {
 /* =========================================================
    RESET PENJUALAN HARI INI
    ---------------------------------------------------------
-   PERHATIAN:
+   PENTING:
    - MENU TIDAK DIHAPUS
    - HARGA TIDAK DIHAPUS
-   - DATABASE MENU TIDAK DIHAPUS
-   - PENJUALAN HARI INI DIHAPUS
-   - GOOGLE SHEETS PENJUALAN HARI INI
-     AKAN DIHAPUS MELALUI Code.gs
+   - SHEET MENU TIDAK DISENTUH
+   - HANYA PENJUALAN HARI INI
+   - LANGSUNG HAPUS DI GOOGLE SHEETS
 ========================================================= */
 
 async function resetTodaySales() {
@@ -2701,8 +3760,10 @@ async function resetTodaySales() {
 
 
     if (message) {
+
         message.textContent =
-            "Menghapus penjualan hari ini...";
+            "Menghapus penjualan hari ini dari Google Sheets...";
+
     }
 
 
@@ -2712,40 +3773,30 @@ async function resetTodaySales() {
             getTodayKey();
 
 
-        /*
-         * Kalau Google Sheets sudah
-         * dikonfigurasi, hapus juga
-         * transaksi hari ini di server.
-         */
+        await googleRequest({
 
-        if (GOOGLE_SCRIPT_URL) {
+            action:
+                "deleteTodaySales",
 
-            await deleteTodaySalesFromGoogleSheets(
+            dateKey:
                 today
-            );
 
-        }
+        });
 
 
         /*
-         * HAPUS HISTORY LOKAL SAJA.
-         *
-         * MENU TETAP AMAN.
+         * Ambil ulang dari Google Sheets
+         * untuk memastikan benar-benar kosong.
          */
 
-        state.todaySales = [];
-
-        saveTodaySalesLocal();
-
-
-        renderSalesHistory();
+        await loadTodaySalesFromGoogleSheets();
 
 
         closeResetModal();
 
 
         showNotification(
-            "Penjualan hari ini berhasil direset. Menu dan harga tetap aman.",
+            "Penjualan hari ini sudah bersih. Data menu dan harga tetap aman.",
             "success"
         );
 
@@ -2753,7 +3804,7 @@ async function resetTodaySales() {
     } catch (error) {
 
         console.error(
-            "Reset penjualan gagal:",
+            "Reset gagal:",
             error
         );
 
@@ -2768,7 +3819,8 @@ async function resetTodaySales() {
 
 
         showNotification(
-            "Penjualan belum direset karena Google Sheets gagal diakses.",
+            error.message ||
+            "Gagal menghapus penjualan hari ini.",
             "error"
         );
 
@@ -2778,71 +3830,11 @@ async function resetTodaySales() {
 
 
 /* =========================================================
-   DELETE SALES FROM GOOGLE SHEETS
-========================================================= */
-
-async function deleteTodaySalesFromGoogleSheets(
-    dateKey
-) {
-
-    const response =
-        await fetch(
-            GOOGLE_SCRIPT_URL,
-            {
-                method: "POST",
-
-                headers: {
-                    "Content-Type":
-                        "text/plain;charset=utf-8"
-                },
-
-                body:
-                    JSON.stringify({
-                        action:
-                            "deleteTodaySales",
-                        dateKey:
-                            dateKey
-                    })
-            }
-        );
-
-
-    if (!response.ok) {
-
-        throw new Error(
-            "Tidak dapat menghubungi Google Sheets."
-        );
-
-    }
-
-
-    const result =
-        await response.json();
-
-
-    if (
-        result &&
-        result.success === false
-    ) {
-
-        throw new Error(
-            result.message ||
-            "Google Sheets gagal menghapus penjualan."
-        );
-
-    }
-
-
-    return result;
-
-}
-
-
-/* =========================================================
    NOTIFICATION
 ========================================================= */
 
-let notificationTimer = null;
+let notificationTimer =
+    null;
 
 
 function showNotification(
@@ -2864,7 +3856,9 @@ function showNotification(
     );
 
 
-    notification.hidden = false;
+    notification.hidden =
+        false;
+
 
     notification.className =
         `notification ${type}`;
@@ -2889,7 +3883,7 @@ function showNotification(
 
 
 /* =========================================================
-   SEARCH EVENT
+   SEARCH
 ========================================================= */
 
 function initializeSearch() {
@@ -2910,6 +3904,7 @@ function initializeSearch() {
             state.searchText =
                 event.target.value;
 
+
             renderMenus();
 
         }
@@ -2919,7 +3914,7 @@ function initializeSearch() {
 
 
 /* =========================================================
-   PAYMENT INPUT EVENT
+   PAYMENT INPUT
 ========================================================= */
 
 function initializePaymentInput() {
@@ -2944,13 +3939,20 @@ function initializePaymentInput() {
         event => {
 
             if (
-                event.key === "Enter"
+                event.key ===
+                "Enter"
             ) {
 
                 event.preventDefault();
 
+
+                const button =
+                    $("payButton");
+
+
                 if (
-                    !$("payButton").disabled
+                    button &&
+                    !button.disabled
                 ) {
 
                     processPayment();
@@ -2966,13 +3968,13 @@ function initializePaymentInput() {
 
 
 /* =========================================================
-   GENERAL EVENTS
+   EVENTS
 ========================================================= */
 
 function initializeEvents() {
 
     /*
-     * Kelola menu
+     * MENU
      */
 
     $("manageMenuButton")
@@ -2985,11 +3987,7 @@ function initializeEvents() {
     $("addMenuFromEmpty")
         ?.addEventListener(
             "click",
-            () => {
-
-                openMenuModal();
-
-            }
+            openMenuModal
         );
 
 
@@ -3021,9 +4019,17 @@ function initializeEvents() {
 
                 resetMenuForm();
 
-                $("menuModalTitle")
-                    .textContent =
-                        "MENU BARU";
+
+                if (
+                    $("menuModalTitle")
+                ) {
+
+                    $("menuModalTitle")
+                        .textContent =
+                            "MENU BARU";
+
+                }
+
 
                 $("menuName")
                     ?.focus();
@@ -3040,7 +4046,7 @@ function initializeEvents() {
 
 
     /*
-     * Keranjang
+     * CART
      */
 
     $("clearCartButton")
@@ -3055,14 +4061,14 @@ function initializeEvents() {
                 }
 
 
-                const confirmed =
+                if (
                     window.confirm(
                         "Kosongkan semua pesanan?"
-                    );
+                    )
+                ) {
 
-
-                if (confirmed) {
                     clearCart();
+
                 }
 
             }
@@ -3070,7 +4076,7 @@ function initializeEvents() {
 
 
     /*
-     * Bayar
+     * PAYMENT
      */
 
     $("payButton")
@@ -3081,7 +4087,7 @@ function initializeEvents() {
 
 
     /*
-     * Payment success
+     * SUCCESS
      */
 
     $("printReceiptButton")
@@ -3118,7 +4124,7 @@ function initializeEvents() {
 
 
     /*
-     * Detail
+     * DETAIL
      */
 
     $("closeSaleDetail")
@@ -3162,7 +4168,7 @@ function initializeEvents() {
 
 
     /*
-     * Download
+     * DOWNLOAD
      */
 
     $("downloadTodayButton")
@@ -3173,7 +4179,7 @@ function initializeEvents() {
 
 
     /*
-     * Reset
+     * RESET
      */
 
     $("resetTodayButton")
@@ -3212,7 +4218,7 @@ function initializeEvents() {
 
 
     /*
-     * Escape untuk menutup modal
+     * ESC
      */
 
     document.addEventListener(
@@ -3220,37 +4226,66 @@ function initializeEvents() {
         event => {
 
             if (
-                event.key !== "Escape"
+                event.key !==
+                "Escape"
             ) {
                 return;
             }
 
 
+            const menuModal =
+                $("menuModal");
+
+
+            const resetModal =
+                $("resetModal");
+
+
+            const successModal =
+                $("paymentSuccessModal");
+
+
+            const detailModal =
+                $("saleDetailModal");
+
+
             if (
-                !$("menuModal").hidden
+                menuModal &&
+                !menuModal.hidden
             ) {
+
                 closeMenuModal();
+
             }
 
 
             if (
-                !$("resetModal").hidden
+                resetModal &&
+                !resetModal.hidden
             ) {
+
                 closeResetModal();
+
             }
 
 
             if (
-                !$("paymentSuccessModal").hidden
+                successModal &&
+                !successModal.hidden
             ) {
+
                 closePaymentSuccessModal();
+
             }
 
 
             if (
-                !$("saleDetailModal").hidden
+                detailModal &&
+                !detailModal.hidden
             ) {
+
                 closeSaleDetail();
+
             }
 
         }
@@ -3260,58 +4295,49 @@ function initializeEvents() {
 
 
 /* =========================================================
-   GOOGLE SHEETS STATUS
+   CURRENT DATE
 ========================================================= */
 
-async function checkGoogleSheetsConnection() {
+function renderCurrentDate() {
 
-    if (!GOOGLE_SCRIPT_URL) {
+    const now =
+        getDateObject();
 
-        setConnectionStatus(
-            "offline",
-            "Google Sheets belum diatur"
+
+    const text =
+        new Intl.DateTimeFormat(
+            "id-ID",
+            {
+                weekday: "long",
+                day: "2-digit",
+                month: "long",
+                year: "numeric"
+            }
+        ).format(
+            now
         );
 
-        return;
+
+    if (
+        $("currentDate")
+    ) {
+
+        $("currentDate")
+            .textContent =
+                text;
 
     }
 
 
-    try {
+    if (
+        $("salesDate")
+    ) {
 
-        const response =
-            await fetch(
-                GOOGLE_SCRIPT_URL +
-                "?action=ping",
-                {
-                    method: "GET"
-                }
-            );
-
-
-        if (!response.ok) {
-            throw new Error();
-        }
-
-
-        setConnectionStatus(
-            "online",
-            "Google Sheets tersambung"
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "Google Sheets tidak dapat diakses:",
-            error
-        );
-
-
-        setConnectionStatus(
-            "offline",
-            "Google Sheets tidak tersambung"
-        );
+        $("salesDate")
+            .textContent =
+                `Tanggal: ${formatDateIndonesia(
+                    now
+                )}`;
 
     }
 
@@ -3319,27 +4345,50 @@ async function checkGoogleSheetsConnection() {
 
 
 /* =========================================================
-   DAILY CLEANUP
+   REFRESH DATA
    ---------------------------------------------------------
-   Hanya membersihkan history lokal yang bukan hari ini.
-   Tidak menyentuh menu.
-   Tidak menyentuh Google Sheets.
+   Semua data database diambil ulang
+   dari Google Sheets.
 ========================================================= */
 
-function cleanupOldLocalHistory() {
+async function refreshAllData() {
 
-    const today =
-        getTodayKey();
+    await Promise.all([
+        loadMenusFromGoogleSheets(),
+        loadTodaySalesFromGoogleSheets()
+    ]);
 
-
-    state.todaySales =
-        state.todaySales.filter(
-            sale =>
-                sale.dateKey === today
-        );
+}
 
 
-    saveTodaySalesLocal();
+/* =========================================================
+   AUTO REFRESH PENJUALAN
+   ---------------------------------------------------------
+   Setiap 60 detik mengambil ulang
+   data dari Google Sheets.
+========================================================= */
+
+function initializeAutoRefresh() {
+
+    setInterval(
+        async () => {
+
+            try {
+
+                await loadTodaySalesFromGoogleSheets();
+
+            } catch (error) {
+
+                console.error(
+                    "Auto refresh gagal:",
+                    error
+                );
+
+            }
+
+        },
+        60 * 1000
+    );
 
 }
 
@@ -3348,11 +4397,7 @@ function cleanupOldLocalHistory() {
    INIT
 ========================================================= */
 
-function initializeApp() {
-
-    loadLocalData();
-
-    cleanupOldLocalHistory();
+async function initializeApp() {
 
     renderCurrentDate();
 
@@ -3370,18 +4415,46 @@ function initializeApp() {
 
     initializeEvents();
 
-    initializeConnectionStatus();
+
+    /*
+     * Pastikan database Google Sheets
+     * dapat diakses.
+     */
+
+    const connected =
+        await checkGoogleSheetsConnection();
 
 
-    if (GOOGLE_SCRIPT_URL) {
+    if (!connected) {
 
-        checkGoogleSheetsConnection();
+        /*
+         * Jangan membuat database lokal.
+         * Aplikasi tetap kosong sampai
+         * Google Sheets tersambung.
+         */
+
+        renderMenus();
+
+        renderSalesHistory();
+
+        return;
 
     }
 
 
     /*
-     * Refresh tanggal setiap menit.
+     * Ambil database langsung
+     * dari Google Sheets.
+     */
+
+    await refreshAllData();
+
+
+    initializeAutoRefresh();
+
+
+    /*
+     * Update tanggal setiap menit.
      */
 
     setInterval(
@@ -3393,11 +4466,12 @@ function initializeApp() {
 
 
 /* =========================================================
-   START
+   START APPLICATION
 ========================================================= */
 
 if (
-    document.readyState === "loading"
+    document.readyState ===
+    "loading"
 ) {
 
     document.addEventListener(
