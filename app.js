@@ -2,19 +2,17 @@
    KASIR APP.JS
    DATABASE UTAMA: GOOGLE SHEETS
 
-   UPDATE FINAL:
+   UPDATE:
    - MENU dari Google Sheets
-   - PENJUALAN HARI INI langsung dari Google Sheets
-   - TIDAK mengirim dateKey dari frontend
-   - Google Apps Script yang menentukan "hari ini"
-   - TRANSAKSI dihitung dari data Google Sheets
-   - TOTAL PENJUALAN dihitung dari data Google Sheets
-   - DOWNLOAD mengambil data terbaru langsung dari Google Sheets
-   - DOWNLOAD TIDAK melakukan filter tanggal di browser
-   - SETEL ULANG langsung meminta Google Sheets menghapus
-     penjualan hari ini
-   - Menu dan harga TIDAK ikut terhapus saat reset
-   - ID transaksi tetap digunakan
+   - PENJUALAN HARI INI dari Google Sheets
+   - Frontend TIDAK mengirim dateKey ke server
+   - getTodaySales dipanggil tanpa dateKey
+   - Mendukung response object maupun array
+   - Mendukung kolom TANGGAL_KEY
+   - Statistik dihitung dari data Google Sheets
+   - Download mengambil data terbaru dari Google Sheets
+   - Reset hanya meminta Google Sheets menghapus hari ini
+   - Menu dan harga tidak ikut terhapus
    - Tidak menggunakan localStorage sebagai database
    - Keranjang tidak dikosongkan jika pembayaran gagal
    ========================================================= */
@@ -101,9 +99,14 @@ function toNumber(value) {
         return 0;
     }
 
+    text =
+        text
+            .replace(/\s/g, "")
+            .replace(/^Rp/i, "");
+
     /*
+     * Format Indonesia:
      * 10.000,50
-     * menjadi 10000.50
      */
 
     if (
@@ -119,8 +122,8 @@ function toNumber(value) {
     }
 
     /*
+     * Format:
      * 10000,50
-     * menjadi 10000.50
      */
 
     else if (
@@ -133,8 +136,7 @@ function toNumber(value) {
     }
 
     /*
-     * Bersihkan Rp, spasi,
-     * dan karakter lain.
+     * Hapus karakter non angka
      */
 
     text =
@@ -266,6 +268,10 @@ function normalizeDateKey(value) {
     ) {
         return "";
     }
+
+    /*
+     * Date object
+     */
 
     if (
         value instanceof Date
@@ -474,6 +480,60 @@ function formatDateTimeIndonesia(
         dateValue === ""
     ) {
         return "-";
+    }
+
+    /*
+     * Kalau dateValue berupa
+     * tanggal Indonesia:
+     *
+     * 28/09/2026 13:00:55
+     *
+     * browser kadang gagal parse.
+     */
+
+    const text =
+        String(dateValue).trim();
+
+    const indoDateTime =
+        text.match(
+            /^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/
+        );
+
+    if (indoDateTime) {
+
+        const day =
+            String(
+                indoDateTime[1]
+            ).padStart(2, "0");
+
+        const month =
+            String(
+                indoDateTime[2]
+            ).padStart(2, "0");
+
+        const year =
+            indoDateTime[3];
+
+        const hour =
+            String(
+                indoDateTime[4] || "00"
+            ).padStart(2, "0");
+
+        const minute =
+            String(
+                indoDateTime[5] || "00"
+            ).padStart(2, "0");
+
+        const second =
+            String(
+                indoDateTime[6] || "00"
+            ).padStart(2, "0");
+
+        return (
+            `${day}/${month}/${year} ` +
+            `${hour}:${minute}:${second}`
+        );
+
     }
 
     const date =
@@ -915,7 +975,8 @@ async function loadMenusFromGoogleSheets() {
                                 menu.name ??
                                 menu.nama ??
                                 menu.Nama ??
-                                menu.NAMA
+                                menu.NAMA ??
+                                menu.NAMA_MENU
                             );
 
                         const category =
@@ -2732,20 +2793,28 @@ function validateSaleResponse(
         result.data ||
         result;
 
-    const returnedNumber =
-        toSafeString(
-            savedSale.transactionNumber ??
-            savedSale.noTransaksi ??
-            savedSale.NO_TRANSAKSI
-        );
-
     if (
-        "transactionNumber" in savedSale ||
-        "NO_TRANSAKSI" in savedSale ||
-        "noTransaksi" in savedSale
+        savedSale &&
+        typeof savedSale === "object" &&
+        !Array.isArray(savedSale)
     ) {
 
+        const returnedNumber =
+            toSafeString(
+                savedSale.transactionNumber ??
+                savedSale.noTransaksi ??
+                savedSale.NO_TRANSAKSI
+            );
+
+        const hasTransactionNumber =
+            (
+                "transactionNumber" in savedSale ||
+                "NO_TRANSAKSI" in savedSale ||
+                "noTransaksi" in savedSale
+            );
+
         if (
+            hasTransactionNumber &&
             !returnedNumber
         ) {
 
@@ -2814,14 +2883,6 @@ async function processPayment() {
         state.lastCompletedSale =
             sale;
 
-        /*
-         * PENTING:
-         * Ambil statistik ulang langsung
-         * dari Google Sheets.
-         *
-         * Tidak mengirim tanggal.
-         */
-
         await loadTodaySalesFromGoogleSheets();
 
         clearCart();
@@ -2850,8 +2911,7 @@ async function processPayment() {
         );
 
         /*
-         * Keranjang TIDAK dikosongkan
-         * jika transaksi gagal.
+         * Keranjang sengaja tidak dikosongkan.
          */
 
         setConnectionStatus(
@@ -2916,7 +2976,7 @@ async function saveSaleToGoogleSheets(
 
 
 /* =========================================================
-   GET SALES ARRAY DARI RESPONSE
+   EXTRACT SALES
    ========================================================= */
 
 function extractSalesFromResponse(
@@ -2928,11 +2988,8 @@ function extractSalesFromResponse(
     }
 
     /*
-     * Format:
-     * {
-     *   success: true,
-     *   sales: [...]
-     * }
+     * response:
+     * { sales: [...] }
      */
 
     if (
@@ -2946,10 +3003,8 @@ function extractSalesFromResponse(
     }
 
     /*
-     * Format:
-     * {
-     *   data: [...]
-     * }
+     * response:
+     * { data: [...] }
      */
 
     if (
@@ -2963,7 +3018,22 @@ function extractSalesFromResponse(
     }
 
     /*
-     * Format response langsung array
+     * response:
+     * { result: [...] }
+     */
+
+    if (
+        Array.isArray(
+            result.result
+        )
+    ) {
+
+        return result.result;
+
+    }
+
+    /*
+     * response langsung array
      */
 
     if (
@@ -2977,135 +3047,23 @@ function extractSalesFromResponse(
     }
 
     /*
-     * Format:
-     * {
-     *   result: [...]
-     * }
+     * Beberapa Apps Script
+     * mungkin memakai:
+     *
+     * { rows: [...] }
      */
 
     if (
         Array.isArray(
-            result.result
+            result.rows
         )
     ) {
 
-        return result.result;
+        return result.rows;
 
     }
 
     return [];
-
-}
-
-
-/* =========================================================
-   LOAD TODAY SALES
-   =========================================================
-
-   SANGAT PENTING:
-
-   TIDAK ADA DATEKEY DI SINI.
-
-   Frontend cukup bilang:
-
-       action = getTodaySales
-
-   Google Apps Script yang menentukan
-   tanggal hari ini dan mengambil data
-   dari Sheet PENJUALAN.
-
-   Dengan cara ini browser tidak
-   memfilter tanggal sendiri.
-========================================================= */
-
-async function loadTodaySalesFromGoogleSheets() {
-
-    if (
-        state.isLoadingSales
-    ) {
-        return;
-    }
-
-    state.isLoadingSales =
-        true;
-
-    try {
-
-        /*
-         * PENTING:
-         * Jangan kirim dateKey.
-         */
-
-        const result =
-            await googleRequest(
-                {
-                    action:
-                        "getTodaySales"
-                },
-                "GET"
-            );
-
-        console.log(
-            "[GOOGLE SHEETS] getTodaySales:",
-            result
-        );
-
-        const rawSales =
-            extractSalesFromResponse(
-                result
-            );
-
-        state.todaySales =
-            normalizeSales(
-                rawSales
-            );
-
-        /*
-         * Simpan langsung hasil Google Sheets.
-         *
-         * Tidak filter berdasarkan tanggal lagi.
-         */
-
-        renderSalesHistory();
-
-        setConnectionStatus(
-            "online",
-            "Google Sheets tersambung"
-        );
-
-    }
-
-    catch (error) {
-
-        console.error(
-            "Gagal mengambil penjualan:",
-            error
-        );
-
-        state.todaySales =
-            [];
-
-        renderSalesHistory();
-
-        setConnectionStatus(
-            "offline",
-            "Gagal mengambil data penjualan"
-        );
-
-        showNotification(
-            error.message ||
-            "Gagal mengambil data penjualan.",
-            "error"
-        );
-
-    }
-
-    finally {
-
-        state.isLoadingSales =
-            false;
-
-    }
 
 }
 
@@ -3134,7 +3092,7 @@ function normalizeSales(
 
                 /*
                  * =====================================================
-                 * ROW ARRAY DARI SHEET PENJUALAN
+                 * ROW ARRAY
                  *
                  * A = ID_PENJUALAN
                  * B = NO_TRANSAKSI
@@ -3143,6 +3101,7 @@ function normalizeSales(
                  * E = TOTAL
                  * F = PEMBAYARAN
                  * G = KEMBALIAN
+                 * H = JUMLAH_ITEM
                  * =====================================================
                  */
 
@@ -3192,7 +3151,9 @@ function normalizeSales(
                             [],
 
                         itemCount:
-                            0
+                            toNumber(
+                                sale[7]
+                            )
 
                     };
 
@@ -3235,6 +3196,11 @@ function normalizeSales(
                         sale.DATE_KEY ??
                         sale.dateKey
                     );
+
+                /*
+                 * Kalau TANGGAL_KEY kosong,
+                 * coba dari TANGGAL.
+                 */
 
                 if (
                     !dateKey &&
@@ -3357,17 +3323,226 @@ function normalizeSales(
 
 
 /* =========================================================
-   RENDER SALES HISTORY
+   FILTER TODAY SALES FALLBACK
    =========================================================
 
-   GOOGLE SHEETS ADALAH SUMBER DATA.
+   CATATAN:
 
-   Tidak ada filter tanggal di sini.
+   Fungsi utama tetap:
+       getTodaySales
 
-   Karena function getTodaySales
-   memang seharusnya sudah mengembalikan
-   penjualan untuk hari ini saja.
+   Frontend TIDAK mengirim dateKey.
+
+   Fungsi ini hanya sebagai pengaman apabila
+   Apps Script ternyata mengembalikan seluruh
+   data PENJUALAN, bukan hanya hari ini.
+
+   Jadi transaksi:
+
+   TANGGAL_KEY = 2026-09-28
+
+   akan terbaca ketika hari browser juga
+   2026-09-28.
 ========================================================= */
+
+function filterTodaySalesFallback(
+    sales
+) {
+
+    if (
+        !Array.isArray(
+            sales
+        )
+    ) {
+
+        return [];
+
+    }
+
+    const todayKey =
+        getTodayKey();
+
+    const normalized =
+        normalizeSales(
+            sales
+        );
+
+    /*
+     * Jika server sudah mengembalikan
+     * data hari ini saja, jangan mengubah.
+     *
+     * Namun jika ada dateKey yang tersedia,
+     * gunakan untuk memastikan.
+     */
+
+    return normalized.filter(
+        sale => {
+
+            if (
+                sale.dateKey
+            ) {
+
+                return (
+                    sale.dateKey ===
+                    todayKey
+                );
+
+            }
+
+            /*
+             * Jika tidak ada dateKey,
+             * pertahankan data karena server
+             * seharusnya sudah memfilter.
+             */
+
+            return true;
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   LOAD TODAY SALES
+   =========================================================
+
+   PENTING:
+
+   Frontend hanya mengirim:
+
+       action = getTodaySales
+
+   Tidak ada dateKey.
+
+   Google Apps Script yang seharusnya
+   menentukan tanggal hari ini.
+========================================================= */
+
+async function loadTodaySalesFromGoogleSheets() {
+
+    if (
+        state.isLoadingSales
+    ) {
+        return;
+    }
+
+    state.isLoadingSales =
+        true;
+
+    try {
+
+        /*
+         * PENTING:
+         * Jangan tambahkan dateKey di sini.
+         */
+
+        const result =
+            await googleRequest(
+                {
+                    action:
+                        "getTodaySales"
+                },
+                "GET"
+            );
+
+        console.log(
+            "[GOOGLE SHEETS] getTodaySales response:",
+            result
+        );
+
+        const rawSales =
+            extractSalesFromResponse(
+                result
+            );
+
+        console.log(
+            "[GOOGLE SHEETS] raw sales:",
+            rawSales
+        );
+
+        /*
+         * Normalisasi.
+         */
+
+        const normalizedSales =
+            normalizeSales(
+                rawSales
+            );
+
+        console.log(
+            "[GOOGLE SHEETS] normalized sales:",
+            normalizedSales
+        );
+
+        /*
+         * =====================================================
+         * PENTING
+         *
+         * getTodaySales seharusnya sudah difilter server.
+         *
+         * Tetapi jika Apps Script mengembalikan semua row,
+         * fallback ini mencegah transaksi tanggal lain masuk.
+         * =====================================================
+         */
+
+        state.todaySales =
+            filterTodaySalesFallback(
+                normalizedSales
+            );
+
+        console.log(
+            "[GOOGLE SHEETS] today sales:",
+            state.todaySales
+        );
+
+        renderSalesHistory();
+
+        setConnectionStatus(
+            "online",
+            "Google Sheets tersambung"
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Gagal mengambil penjualan:",
+            error
+        );
+
+        state.todaySales =
+            [];
+
+        renderSalesHistory();
+
+        setConnectionStatus(
+            "offline",
+            "Gagal mengambil data penjualan"
+        );
+
+        showNotification(
+            error.message ||
+            "Gagal mengambil data penjualan.",
+            "error"
+        );
+
+    }
+
+    finally {
+
+        state.isLoadingSales =
+            false;
+
+    }
+
+}
+
+
+/* =========================================================
+   RENDER SALES HISTORY
+   ========================================================= */
 
 function renderSalesHistory() {
 
@@ -3382,10 +3557,6 @@ function renderSalesHistory() {
 
     const total =
         $("todaySalesTotal");
-
-    /*
-     * DATA LANGSUNG DARI GOOGLE SHEETS
-     */
 
     const sales =
         Array.isArray(
@@ -3439,7 +3610,8 @@ function renderSalesHistory() {
     }
 
     /*
-     * Tidak menampilkan daftar transaksi.
+     * Daftar transaksi tidak ditampilkan
+     * sesuai desain sebelumnya.
      */
 
     if (list) {
@@ -3451,10 +3623,6 @@ function renderSalesHistory() {
             "none";
 
     }
-
-    /*
-     * Empty state tidak ditampilkan.
-     */
 
     if (empty) {
 
@@ -3769,16 +3937,7 @@ function printReceipt(
 
 /* =========================================================
    DOWNLOAD PENJUALAN HARI INI
-   =========================================================
-
-   PENTING:
-
-   - Tidak menentukan tanggal sendiri.
-   - Tidak mengirim dateKey.
-   - Memanggil getTodaySales.
-   - Google Apps Script yang menentukan hari ini.
-   - Semua data hasil response dipakai langsung.
-========================================================= */
+   ========================================================= */
 
 async function downloadTodaySales() {
 
@@ -3790,8 +3949,7 @@ async function downloadTodaySales() {
         );
 
         /*
-         * PENTING:
-         * TIDAK ADA dateKey.
+         * Tidak mengirim dateKey.
          */
 
         const result =
@@ -3813,27 +3971,20 @@ async function downloadTodaySales() {
                 result
             );
 
-        const sales =
+        const normalizedSales =
             normalizeSales(
                 rawSales
             );
 
-        /*
-         * Simpan data terbaru.
-         */
+        const sales =
+            filterTodaySalesFallback(
+                normalizedSales
+            );
 
         state.todaySales =
             sales;
 
-        /*
-         * Update statistik di layar.
-         */
-
         renderSalesHistory();
-
-        /*
-         * Tidak ada data.
-         */
 
         if (
             sales.length === 0
@@ -3848,10 +3999,6 @@ async function downloadTodaySales() {
 
         }
 
-        /*
-         * TOTAL
-         */
-
         const totalPenjualan =
             sales.reduce(
                 (
@@ -3865,10 +4012,6 @@ async function downloadTodaySales() {
                 0
             );
 
-        /*
-         * CSV
-         */
-
         const rows = [];
 
         rows.push([
@@ -3878,7 +4021,8 @@ async function downloadTodaySales() {
             "No Transaksi",
             "Total",
             "Pembayaran",
-            "Kembalian"
+            "Kembalian",
+            "Jumlah Item"
         ]);
 
         sales.forEach(
@@ -3900,7 +4044,9 @@ async function downloadTodaySales() {
 
                     sale.payment,
 
-                    sale.change
+                    sale.change,
+
+                    sale.itemCount
 
                 ]);
 
@@ -3918,10 +4064,6 @@ async function downloadTodaySales() {
             "TOTAL PENJUALAN",
             totalPenjualan
         ]);
-
-        /*
-         * Buat CSV.
-         */
 
         const csv =
             rows
@@ -3962,14 +4104,6 @@ async function downloadTodaySales() {
 
         link.href =
             url;
-
-        /*
-         * Nama file berdasarkan
-         * tanggal lokal komputer.
-         *
-         * Ini HANYA nama file,
-         * bukan filter data.
-         */
 
         link.download =
             `penjualan-${getTodayKey()}.csv`;
@@ -4103,21 +4237,7 @@ function closeResetModal() {
 
 /* =========================================================
    RESET TODAY SALES
-   =========================================================
-
-   PENTING:
-
-   TIDAK mengirim dateKey.
-
-   Google Apps Script:
-   action = deleteTodaySales
-
-   akan menentukan sendiri tanggal hari ini
-   dan hanya menghapus penjualan hari ini.
-
-   MENU TIDAK DIHAPUS.
-   HARGA TIDAK DIHAPUS.
-========================================================= */
+   ========================================================= */
 
 async function resetTodaySales() {
 
@@ -4152,7 +4272,6 @@ async function resetTodaySales() {
     try {
 
         /*
-         * PENTING:
          * Tidak mengirim dateKey.
          */
 
@@ -4175,20 +4294,10 @@ async function resetTodaySales() {
 
         }
 
-        /*
-         * Kosongkan state sementara
-         * supaya angka langsung 0.
-         */
-
         state.todaySales =
             [];
 
         renderSalesHistory();
-
-        /*
-         * Ambil ulang dari Google Sheets.
-         * Jika reset berhasil, seharusnya 0.
-         */
 
         await loadTodaySalesFromGoogleSheets();
 
@@ -4486,19 +4595,11 @@ function initializeEvents() {
             closePaymentSuccessModal
         );
 
-    /*
-     * DOWNLOAD PENJUALAN
-     */
-
     $("downloadTodayButton")
         ?.addEventListener(
             "click",
             downloadTodaySales
         );
-
-    /*
-     * SETEL ULANG
-     */
 
     $("resetTodayButton")
         ?.addEventListener(
@@ -4661,12 +4762,6 @@ function initializeAutoRefresh() {
             }
 
             try {
-
-                /*
-                 * Statistik selalu
-                 * mengambil ulang langsung
-                 * dari Google Sheets.
-                 */
 
                 await loadTodaySalesFromGoogleSheets();
 
