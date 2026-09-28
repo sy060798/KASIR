@@ -2,13 +2,18 @@
    KASIR APP.JS
    DATABASE UTAMA: GOOGLE SHEETS
 
-   UPDATE:
-   - MENU tetap dari Google Sheets
-   - PENJUALAN HARI INI tidak menampilkan daftar transaksi
-   - Jumlah transaksi langsung dari Google Sheets
-   - Total penjualan langsung dari Google Sheets
-   - Download mengambil data langsung dari Google Sheets
-   - TANGGAL_KEY dinormalisasi
+   UPDATE FINAL:
+   - MENU dari Google Sheets
+   - PENJUALAN HARI INI langsung dari Google Sheets
+   - TIDAK mengirim dateKey dari frontend
+   - Google Apps Script yang menentukan "hari ini"
+   - TRANSAKSI dihitung dari data Google Sheets
+   - TOTAL PENJUALAN dihitung dari data Google Sheets
+   - DOWNLOAD mengambil data terbaru langsung dari Google Sheets
+   - DOWNLOAD TIDAK melakukan filter tanggal di browser
+   - SETEL ULANG langsung meminta Google Sheets menghapus
+     penjualan hari ini
+   - Menu dan harga TIDAK ikut terhapus saat reset
    - ID transaksi tetap digunakan
    - Tidak menggunakan localStorage sebagai database
    - Keranjang tidak dikosongkan jika pembayaran gagal
@@ -97,8 +102,8 @@ function toNumber(value) {
     }
 
     /*
-     * Contoh:
-     * 10.000,50 -> 10000.50
+     * 10.000,50
+     * menjadi 10000.50
      */
 
     if (
@@ -114,8 +119,8 @@ function toNumber(value) {
     }
 
     /*
-     * Contoh:
-     * 10000,50 -> 10000.50
+     * 10000,50
+     * menjadi 10000.50
      */
 
     else if (
@@ -128,7 +133,8 @@ function toNumber(value) {
     }
 
     /*
-     * Bersihkan simbol mata uang
+     * Bersihkan Rp, spasi,
+     * dan karakter lain.
      */
 
     text =
@@ -261,10 +267,6 @@ function normalizeDateKey(value) {
         return "";
     }
 
-    /*
-     * Jika Date object
-     */
-
     if (
         value instanceof Date
     ) {
@@ -364,9 +366,7 @@ function normalizeDateKey(value) {
     }
 
     /*
-     * Google Sheets kadang mengirim:
-     *
-     * 2026-09-28T...
+     * ISO lengkap
      */
 
     const parsed =
@@ -412,11 +412,6 @@ function formatDateIndonesia(
     ) {
         return "-";
     }
-
-    /*
-     * Jika TANGGAL_KEY
-     * format YYYY-MM-DD
-     */
 
     const key =
         normalizeDateKey(
@@ -514,26 +509,11 @@ function formatDateTimeIndonesia(
 function escapeHtml(value) {
 
     return String(value ?? "")
-        .replaceAll(
-            "&",
-            "&amp;"
-        )
-        .replaceAll(
-            "<",
-            "&lt;"
-        )
-        .replaceAll(
-            ">",
-            "&gt;"
-        )
-        .replaceAll(
-            '"',
-            "&quot;"
-        )
-        .replaceAll(
-            "'",
-            "&#039;"
-        );
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
 
 }
 
@@ -570,10 +550,7 @@ function generateTransactionNumber() {
 
     const date =
         getTodayKey()
-            .replaceAll(
-                "-",
-                ""
-            );
+            .replaceAll("-", "");
 
     const hour =
         String(
@@ -684,7 +661,8 @@ async function googleRequest(
 
                     if (
                         value !== undefined &&
-                        value !== null
+                        value !== null &&
+                        value !== ""
                     ) {
 
                         params.set(
@@ -697,11 +675,17 @@ async function googleRequest(
                 }
             );
 
+        const query =
+            params.toString();
+
+        const url =
+            query
+                ? `${GOOGLE_SCRIPT_URL}?${query}`
+                : GOOGLE_SCRIPT_URL;
+
         response =
             await fetch(
-                GOOGLE_SCRIPT_URL +
-                "?" +
-                params.toString(),
+                url,
                 {
                     method: "GET",
                     cache: "no-store",
@@ -907,13 +891,9 @@ async function loadMenusFromGoogleSheets() {
             );
 
         const menus =
-            Array.isArray(
-                result.menus
-            )
+            Array.isArray(result.menus)
                 ? result.menus
-                : Array.isArray(
-                    result.data
-                )
+                : Array.isArray(result.data)
                     ? result.data
                     : [];
 
@@ -1477,12 +1457,8 @@ function changeCartQuantity(
     }
 
     const nextQuantity =
-        Number(
-            item.quantity
-        ) +
-        Number(
-            change
-        );
+        Number(item.quantity) +
+        Number(change);
 
     if (
         nextQuantity <= 0
@@ -2839,8 +2815,11 @@ async function processPayment() {
             sale;
 
         /*
-         * Setelah transaksi berhasil,
-         * ambil ulang statistik langsung dari Google Sheets.
+         * PENTING:
+         * Ambil statistik ulang langsung
+         * dari Google Sheets.
+         *
+         * Tidak mengirim tanggal.
          */
 
         await loadTodaySalesFromGoogleSheets();
@@ -2871,8 +2850,8 @@ async function processPayment() {
         );
 
         /*
-         * PENTING:
-         * Keranjang TIDAK dikosongkan jika save gagal.
+         * Keranjang TIDAK dikosongkan
+         * jika transaksi gagal.
          */
 
         setConnectionStatus(
@@ -2937,16 +2916,106 @@ async function saveSaleToGoogleSheets(
 
 
 /* =========================================================
+   GET SALES ARRAY DARI RESPONSE
+   ========================================================= */
+
+function extractSalesFromResponse(
+    result
+) {
+
+    if (!result) {
+        return [];
+    }
+
+    /*
+     * Format:
+     * {
+     *   success: true,
+     *   sales: [...]
+     * }
+     */
+
+    if (
+        Array.isArray(
+            result.sales
+        )
+    ) {
+
+        return result.sales;
+
+    }
+
+    /*
+     * Format:
+     * {
+     *   data: [...]
+     * }
+     */
+
+    if (
+        Array.isArray(
+            result.data
+        )
+    ) {
+
+        return result.data;
+
+    }
+
+    /*
+     * Format response langsung array
+     */
+
+    if (
+        Array.isArray(
+            result
+        )
+    ) {
+
+        return result;
+
+    }
+
+    /*
+     * Format:
+     * {
+     *   result: [...]
+     * }
+     */
+
+    if (
+        Array.isArray(
+            result.result
+        )
+    ) {
+
+        return result.result;
+
+    }
+
+    return [];
+
+}
+
+
+/* =========================================================
    LOAD TODAY SALES
    =========================================================
 
-   CATATAN:
-   Data ini hanya dipakai untuk:
-   - jumlah transaksi
-   - total penjualan
+   SANGAT PENTING:
 
-   Tidak lagi digunakan untuk menampilkan
-   daftar transaksi di web.
+   TIDAK ADA DATEKEY DI SINI.
+
+   Frontend cukup bilang:
+
+       action = getTodaySales
+
+   Google Apps Script yang menentukan
+   tanggal hari ini dan mengambil data
+   dari Sheet PENJUALAN.
+
+   Dengan cara ini browser tidak
+   memfilter tanggal sendiri.
 ========================================================= */
 
 async function loadTodaySalesFromGoogleSheets() {
@@ -2962,18 +3031,16 @@ async function loadTodaySalesFromGoogleSheets() {
 
     try {
 
-        const today =
-            getTodayKey();
+        /*
+         * PENTING:
+         * Jangan kirim dateKey.
+         */
 
         const result =
             await googleRequest(
                 {
                     action:
-                        "getTodaySales",
-
-                    dateKey:
-                        today
-
+                        "getTodaySales"
                 },
                 "GET"
             );
@@ -2983,28 +3050,20 @@ async function loadTodaySalesFromGoogleSheets() {
             result
         );
 
-        const sales =
-            Array.isArray(
-                result?.sales
-            )
-                ? result.sales
-                : Array.isArray(
-                    result?.data
-                )
-                    ? result.data
-                    : Array.isArray(
-                        result
-                    )
-                        ? result
-                        : [];
+        const rawSales =
+            extractSalesFromResponse(
+                result
+            );
 
         state.todaySales =
             normalizeSales(
-                sales
+                rawSales
             );
 
         /*
-         * Hanya render statistik.
+         * Simpan langsung hasil Google Sheets.
+         *
+         * Tidak filter berdasarkan tanggal lagi.
          */
 
         renderSalesHistory();
@@ -3166,6 +3225,7 @@ function normalizeSales(
                     sale.timestamp ??
                     sale.TANGGAL ??
                     sale.tanggal ??
+                    sale.TANGGAL_PENJUALAN ??
                     "";
 
                 let dateKey =
@@ -3191,7 +3251,9 @@ function normalizeSales(
                 const total =
                     toNumber(
                         sale.total ??
-                        sale.TOTAL
+                        sale.TOTAL ??
+                        sale.totalPenjualan ??
+                        sale.total_penjualan
                     );
 
                 const payment =
@@ -3298,12 +3360,13 @@ function normalizeSales(
    RENDER SALES HISTORY
    =========================================================
 
-   UPDATE PENTING:
-   TIDAK MENAMPILKAN DAFTAR TRANSAKSI.
+   GOOGLE SHEETS ADALAH SUMBER DATA.
 
-   Hanya:
-   - jumlah transaksi hari ini
-   - total penjualan hari ini
+   Tidak ada filter tanggal di sini.
+
+   Karena function getTodaySales
+   memang seharusnya sudah mengembalikan
+   penjualan untuk hari ini saja.
 ========================================================= */
 
 function renderSalesHistory() {
@@ -3320,26 +3383,16 @@ function renderSalesHistory() {
     const total =
         $("todaySalesTotal");
 
-    const today =
-        getTodayKey();
-
     /*
-     * Filter berdasarkan TANGGAL_KEY.
+     * DATA LANGSUNG DARI GOOGLE SHEETS
      */
 
     const sales =
-        state.todaySales.filter(
-            sale => {
-
-                const key =
-                    normalizeDateKey(
-                        sale.dateKey
-                    );
-
-                return key === today;
-
-            }
-        );
+        Array.isArray(
+            state.todaySales
+        )
+            ? state.todaySales
+            : [];
 
     /*
      * JUMLAH TRANSAKSI
@@ -3386,7 +3439,7 @@ function renderSalesHistory() {
     }
 
     /*
-     * HAPUS DAFTAR TRANSAKSI
+     * Tidak menampilkan daftar transaksi.
      */
 
     if (list) {
@@ -3400,11 +3453,7 @@ function renderSalesHistory() {
     }
 
     /*
-     * HILANGKAN EMPTY STATE
-     *
-     * Supaya tulisan:
-     * "BELUM ADA PENJUALAN"
-     * tidak muncul lagi.
+     * Empty state tidak ditampilkan.
      */
 
     if (empty) {
@@ -3723,10 +3772,12 @@ function printReceipt(
    =========================================================
 
    PENTING:
-   Tombol download mengambil DATA TERBARU
-   langsung dari Google Sheets.
 
-   Tidak mengambil dari daftar transaksi HTML.
+   - Tidak menentukan tanggal sendiri.
+   - Tidak mengirim dateKey.
+   - Memanggil getTodaySales.
+   - Google Apps Script yang menentukan hari ini.
+   - Semua data hasil response dipakai langsung.
 ========================================================= */
 
 async function downloadTodaySales() {
@@ -3734,72 +3785,54 @@ async function downloadTodaySales() {
     try {
 
         showNotification(
-            "Mengambil data penjualan langsung dari Google Sheets...",
+            "Mengambil penjualan langsung dari Google Sheets...",
             "success"
         );
 
-        const today =
-            getTodayKey();
-
         /*
-         * Request ulang langsung ke Google Sheets.
+         * PENTING:
+         * TIDAK ADA dateKey.
          */
 
         const result =
             await googleRequest(
                 {
                     action:
-                        "getTodaySales",
-
-                    dateKey:
-                        today
-
+                        "getTodaySales"
                 },
                 "GET"
             );
 
+        console.log(
+            "[GOOGLE SHEETS] download getTodaySales:",
+            result
+        );
+
         const rawSales =
-            Array.isArray(
-                result?.sales
-            )
-                ? result.sales
-                : Array.isArray(
-                    result?.data
-                )
-                    ? result.data
-                    : Array.isArray(
-                        result
-                    )
-                        ? result
-                        : [];
+            extractSalesFromResponse(
+                result
+            );
 
         const sales =
             normalizeSales(
                 rawSales
-            )
-            .filter(
-                sale =>
-                    normalizeDateKey(
-                        sale.dateKey
-                    ) ===
-                    today
             );
 
         /*
-         * Simpan data terbaru ke state.
+         * Simpan data terbaru.
          */
 
         state.todaySales =
             sales;
 
         /*
-         * Update angka di web.
+         * Update statistik di layar.
          */
 
         renderSalesHistory();
 
         /*
-         * Jika kosong.
+         * Tidak ada data.
          */
 
         if (
@@ -3807,15 +3840,30 @@ async function downloadTodaySales() {
         ) {
 
             showNotification(
-                `Tidak ada transaksi pada ${formatDateIndonesia(
-                    today
-                )}.`,
+                "Google Sheets tidak mengembalikan penjualan hari ini.",
                 "warning"
             );
 
             return;
 
         }
+
+        /*
+         * TOTAL
+         */
+
+        const totalPenjualan =
+            sales.reduce(
+                (
+                    sum,
+                    sale
+                ) =>
+                    sum +
+                    toNumber(
+                        sale.total
+                    ),
+                0
+            );
 
         /*
          * CSV
@@ -3858,23 +3906,6 @@ async function downloadTodaySales() {
 
             }
         );
-
-        /*
-         * TOTAL DI AKHIR FILE
-         */
-
-        const totalPenjualan =
-            sales.reduce(
-                (
-                    sum,
-                    sale
-                ) =>
-                    sum +
-                    toNumber(
-                        sale.total
-                    ),
-                0
-            );
 
         rows.push([]);
 
@@ -3932,8 +3963,16 @@ async function downloadTodaySales() {
         link.href =
             url;
 
+        /*
+         * Nama file berdasarkan
+         * tanggal lokal komputer.
+         *
+         * Ini HANYA nama file,
+         * bukan filter data.
+         */
+
         link.download =
-            `penjualan-${today}.csv`;
+            `penjualan-${getTodayKey()}.csv`;
 
         document.body.appendChild(
             link
@@ -3948,9 +3987,7 @@ async function downloadTodaySales() {
         );
 
         showNotification(
-            `Penjualan ${formatDateIndonesia(
-                today
-            )} berhasil didownload dari Google Sheets.`,
+            "Penjualan hari ini berhasil didownload dari Google Sheets.",
             "success"
         );
 
@@ -4066,7 +4103,21 @@ function closeResetModal() {
 
 /* =========================================================
    RESET TODAY SALES
-   ========================================================= */
+   =========================================================
+
+   PENTING:
+
+   TIDAK mengirim dateKey.
+
+   Google Apps Script:
+   action = deleteTodaySales
+
+   akan menentukan sendiri tanggal hari ini
+   dan hanya menghapus penjualan hari ini.
+
+   MENU TIDAK DIHAPUS.
+   HARGA TIDAK DIHAPUS.
+========================================================= */
 
 async function resetTodaySales() {
 
@@ -4100,17 +4151,16 @@ async function resetTodaySales() {
 
     try {
 
-        const today =
-            getTodayKey();
+        /*
+         * PENTING:
+         * Tidak mengirim dateKey.
+         */
 
         const result =
             await googleRequest({
 
                 action:
-                    "deleteTodaySales",
-
-                dateKey:
-                    today
+                    "deleteTodaySales"
 
             });
 
@@ -4126,7 +4176,18 @@ async function resetTodaySales() {
         }
 
         /*
+         * Kosongkan state sementara
+         * supaya angka langsung 0.
+         */
+
+        state.todaySales =
+            [];
+
+        renderSalesHistory();
+
+        /*
          * Ambil ulang dari Google Sheets.
+         * Jika reset berhasil, seharusnya 0.
          */
 
         await loadTodaySalesFromGoogleSheets();
@@ -4425,11 +4486,19 @@ function initializeEvents() {
             closePaymentSuccessModal
         );
 
+    /*
+     * DOWNLOAD PENJUALAN
+     */
+
     $("downloadTodayButton")
         ?.addEventListener(
             "click",
             downloadTodaySales
         );
+
+    /*
+     * SETEL ULANG
+     */
 
     $("resetTodayButton")
         ?.addEventListener(
@@ -4594,8 +4663,9 @@ function initializeAutoRefresh() {
             try {
 
                 /*
-                 * Hanya refresh statistik.
-                 * Tidak menampilkan transaksi.
+                 * Statistik selalu
+                 * mengambil ulang langsung
+                 * dari Google Sheets.
                  */
 
                 await loadTodaySalesFromGoogleSheets();
