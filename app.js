@@ -2,29 +2,22 @@
    KASIR APP.JS
    DATABASE UTAMA: GOOGLE SHEETS
 
-   SHEET:
-   - MENU
-   - PENJUALAN
-   - DETAIL_PENJUALAN
-
    UPDATE:
-   - ID transaksi
-   - TANGGAL
-   - TANGGAL_KEY
-   - Validasi response server
-   - Validasi data menu
-   - Validasi transaksi
-   - Normalisasi angka Google Sheets
-   - Normalisasi TANGGAL_KEY
-   - Mencegah double payment
-   - Tidak mengosongkan keranjang jika save gagal
-   - Refresh data setelah operasi penting
-========================================================= */
+   - MENU tetap dari Google Sheets
+   - PENJUALAN HARI INI tidak menampilkan daftar transaksi
+   - Jumlah transaksi langsung dari Google Sheets
+   - Total penjualan langsung dari Google Sheets
+   - Download mengambil data langsung dari Google Sheets
+   - TANGGAL_KEY dinormalisasi
+   - ID transaksi tetap digunakan
+   - Tidak menggunakan localStorage sebagai database
+   - Keranjang tidak dikosongkan jika pembayaran gagal
+   ========================================================= */
 
 
 /* =========================================================
    GOOGLE APPS SCRIPT URL
-========================================================= */
+   ========================================================= */
 
 const GOOGLE_SCRIPT_URL =
     "https://script.google.com/macros/s/AKfycbzayanvm5sak3mvjcf_ikudaESu40WgH6Ck4mWzXeqHAinjy8CUXr8pQkudICfdUPugMQ/exec";
@@ -32,7 +25,7 @@ const GOOGLE_SCRIPT_URL =
 
 /* =========================================================
    STATE
-========================================================= */
+   ========================================================= */
 
 const state = {
 
@@ -67,7 +60,7 @@ const state = {
 
 /* =========================================================
    DOM HELPER
-========================================================= */
+   ========================================================= */
 
 function $(id) {
     return document.getElementById(id);
@@ -76,7 +69,7 @@ function $(id) {
 
 /* =========================================================
    SAFE NUMBER
-========================================================= */
+   ========================================================= */
 
 function toNumber(value) {
 
@@ -88,9 +81,7 @@ function toNumber(value) {
         return 0;
     }
 
-    if (
-        typeof value === "number"
-    ) {
+    if (typeof value === "number") {
 
         return Number.isFinite(value)
             ? value
@@ -109,6 +100,7 @@ function toNumber(value) {
      * Contoh:
      * 10.000,50 -> 10000.50
      */
+
     if (
         text.includes(",") &&
         text.includes(".")
@@ -125,6 +117,7 @@ function toNumber(value) {
      * Contoh:
      * 10000,50 -> 10000.50
      */
+
     else if (
         text.includes(",")
     ) {
@@ -133,6 +126,16 @@ function toNumber(value) {
             text.replace(",", ".");
 
     }
+
+    /*
+     * Bersihkan simbol mata uang
+     */
+
+    text =
+        text.replace(
+            /[^\d.-]/g,
+            ""
+        );
 
     const number =
         Number(text);
@@ -146,7 +149,7 @@ function toNumber(value) {
 
 /* =========================================================
    SAFE STRING
-========================================================= */
+   ========================================================= */
 
 function toSafeString(value) {
 
@@ -164,12 +167,9 @@ function toSafeString(value) {
 
 /* =========================================================
    FORMAT RUPIAH
-========================================================= */
+   ========================================================= */
 
 function formatRupiah(value) {
-
-    const number =
-        toNumber(value);
 
     return new Intl.NumberFormat(
         "id-ID",
@@ -179,14 +179,16 @@ function formatRupiah(value) {
             minimumFractionDigits: 0,
             maximumFractionDigits: 0
         }
-    ).format(number);
+    ).format(
+        toNumber(value)
+    );
 
 }
 
 
 /* =========================================================
    FORMAT ANGKA
-========================================================= */
+   ========================================================= */
 
 function formatNumber(value) {
 
@@ -200,8 +202,8 @@ function formatNumber(value) {
 
 
 /* =========================================================
-   DATE OBJECT
-========================================================= */
+   TANGGAL
+   ========================================================= */
 
 function getDateObject() {
 
@@ -212,9 +214,7 @@ function getDateObject() {
 
 /* =========================================================
    TODAY KEY
-   FORMAT:
-   YYYY-MM-DD
-========================================================= */
+   ========================================================= */
 
 function getTodayKey() {
 
@@ -240,55 +240,54 @@ function getTodayKey() {
             "0"
         );
 
-    return `${year}-${month}-${day}`;
+    return (
+        `${year}-${month}-${day}`
+    );
 
 }
 
 
 /* =========================================================
    NORMALIZE DATE KEY
-========================================================= */
+   ========================================================= */
 
 function normalizeDateKey(value) {
 
     if (
         value === null ||
-        value === undefined
+        value === undefined ||
+        value === ""
     ) {
         return "";
     }
 
     /*
-     * Jika Google Sheets mengembalikan
-     * Date object secara langsung.
+     * Jika Date object
      */
+
     if (
-        value instanceof Date &&
-        !Number.isNaN(
-            value.getTime()
-        )
+        value instanceof Date
     ) {
 
-        const year =
-            value.getFullYear();
+        if (
+            Number.isNaN(
+                value.getTime()
+            )
+        ) {
+            return "";
+        }
 
-        const month =
+        return (
+            value.getFullYear() +
+            "-" +
             String(
                 value.getMonth() + 1
-            ).padStart(
-                2,
-                "0"
-            );
-
-        const day =
+            ).padStart(2, "0") +
+            "-" +
             String(
                 value.getDate()
-            ).padStart(
-                2,
-                "0"
-            );
-
-        return `${year}-${month}-${day}`;
+            ).padStart(2, "0")
+        );
 
     }
 
@@ -299,12 +298,10 @@ function normalizeDateKey(value) {
         return "";
     }
 
-
     /*
      * YYYY-MM-DD
-     *
-     * YYYY-MM-DDTHH:mm:ss
      */
+
     const isoMatch =
         text.match(
             /^(\d{4})-(\d{2})-(\d{2})/
@@ -320,10 +317,10 @@ function normalizeDateKey(value) {
 
     }
 
-
     /*
      * DD/MM/YYYY
      */
+
     const indoMatch =
         text.match(
             /^(\d{1,2})\/(\d{1,2})\/(\d{4})/
@@ -343,10 +340,10 @@ function normalizeDateKey(value) {
 
     }
 
-
     /*
      * DD-MM-YYYY
      */
+
     const dashMatch =
         text.match(
             /^(\d{1,2})-(\d{1,2})-(\d{4})/
@@ -366,33 +363,12 @@ function normalizeDateKey(value) {
 
     }
 
-
     /*
-     * YYYY/MM/DD
+     * Google Sheets kadang mengirim:
+     *
+     * 2026-09-28T...
      */
-    const slashIsoMatch =
-        text.match(
-            /^(\d{4})\/(\d{1,2})\/(\d{1,2})/
-        );
 
-    if (slashIsoMatch) {
-
-        return (
-            `${slashIsoMatch[1]}-` +
-            `${String(
-                slashIsoMatch[2]
-            ).padStart(2, "0")}-` +
-            `${String(
-                slashIsoMatch[3]
-            ).padStart(2, "0")}`
-        );
-
-    }
-
-
-    /*
-     * Coba parse Date
-     */
     const parsed =
         new Date(text);
 
@@ -402,31 +378,19 @@ function normalizeDateKey(value) {
         )
     ) {
 
-        const year =
-            parsed.getFullYear();
-
-        const month =
+        return (
+            parsed.getFullYear() +
+            "-" +
             String(
                 parsed.getMonth() + 1
-            ).padStart(
-                2,
-                "0"
-            );
-
-        const day =
+            ).padStart(2, "0") +
+            "-" +
             String(
                 parsed.getDate()
-            ).padStart(
-                2,
-                "0"
-            );
-
-        return (
-            `${year}-${month}-${day}`
+            ).padStart(2, "0")
         );
 
     }
-
 
     return "";
 
@@ -435,7 +399,7 @@ function normalizeDateKey(value) {
 
 /* =========================================================
    FORMAT DATE INDONESIA
-========================================================= */
+   ========================================================= */
 
 function formatDateIndonesia(
     dateValue
@@ -447,6 +411,35 @@ function formatDateIndonesia(
         dateValue === ""
     ) {
         return "-";
+    }
+
+    /*
+     * Jika TANGGAL_KEY
+     * format YYYY-MM-DD
+     */
+
+    const key =
+        normalizeDateKey(
+            dateValue
+        );
+
+    if (key) {
+
+        const parts =
+            key.split("-");
+
+        if (
+            parts.length === 3
+        ) {
+
+            return (
+                `${parts[2]}/` +
+                `${parts[1]}/` +
+                `${parts[0]}`
+            );
+
+        }
+
     }
 
     const date =
@@ -474,7 +467,7 @@ function formatDateIndonesia(
 
 /* =========================================================
    FORMAT DATE TIME
-========================================================= */
+   ========================================================= */
 
 function formatDateTimeIndonesia(
     dateValue
@@ -516,23 +509,38 @@ function formatDateTimeIndonesia(
 
 /* =========================================================
    ESCAPE HTML
-========================================================= */
+   ========================================================= */
 
 function escapeHtml(value) {
 
     return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+        .replaceAll(
+            "&",
+            "&amp;"
+        )
+        .replaceAll(
+            "<",
+            "&lt;"
+        )
+        .replaceAll(
+            ">",
+            "&gt;"
+        )
+        .replaceAll(
+            '"',
+            "&quot;"
+        )
+        .replaceAll(
+            "'",
+            "&#039;"
+        );
 
 }
 
 
 /* =========================================================
    GENERATE ID
-========================================================= */
+   ========================================================= */
 
 function generateId(
     prefix = "id"
@@ -545,7 +553,7 @@ function generateId(
         "_" +
         Math.random()
             .toString(36)
-            .slice(2, 10)
+            .slice(2, 8)
     );
 
 }
@@ -553,7 +561,7 @@ function generateId(
 
 /* =========================================================
    TRANSACTION NUMBER
-========================================================= */
+   ========================================================= */
 
 function generateTransactionNumber() {
 
@@ -562,7 +570,10 @@ function generateTransactionNumber() {
 
     const date =
         getTodayKey()
-            .replaceAll("-", "");
+            .replaceAll(
+                "-",
+                ""
+            );
 
     const hour =
         String(
@@ -586,10 +597,10 @@ function generateTransactionNumber() {
 
     const random =
         Math.floor(
-            Math.random() * 10000
+            Math.random() * 1000
         )
             .toString()
-            .padStart(4, "0");
+            .padStart(3, "0");
 
     return (
         `${date}-` +
@@ -603,7 +614,7 @@ function generateTransactionNumber() {
 
 /* =========================================================
    CONNECTION STATUS
-========================================================= */
+   ========================================================= */
 
 function setConnectionStatus(
     status,
@@ -640,8 +651,8 @@ function setConnectionStatus(
 
 
 /* =========================================================
-   API REQUEST
-========================================================= */
+   GOOGLE REQUEST
+   ========================================================= */
 
 async function googleRequest(
     payload = {},
@@ -659,7 +670,6 @@ async function googleRequest(
     }
 
     let response;
-
 
     if (
         method === "GET"
@@ -729,7 +739,6 @@ async function googleRequest(
 
     }
 
-
     if (
         !response.ok
     ) {
@@ -739,7 +748,6 @@ async function googleRequest(
         );
 
     }
-
 
     const text =
         await response.text();
@@ -754,7 +762,6 @@ async function googleRequest(
         );
 
     }
-
 
     let result;
 
@@ -780,7 +787,6 @@ async function googleRequest(
 
     }
 
-
     if (
         result === null ||
         result === undefined
@@ -791,7 +797,6 @@ async function googleRequest(
         );
 
     }
-
 
     if (
         result.success === false
@@ -805,15 +810,14 @@ async function googleRequest(
 
     }
 
-
     return result;
 
 }
 
 
 /* =========================================================
-   PING
-========================================================= */
+   CHECK CONNECTION
+   ========================================================= */
 
 async function checkGoogleSheetsConnection() {
 
@@ -879,7 +883,7 @@ async function checkGoogleSheetsConnection() {
 
 /* =========================================================
    LOAD MENU
-========================================================= */
+   ========================================================= */
 
 async function loadMenusFromGoogleSheets() {
 
@@ -902,7 +906,6 @@ async function loadMenusFromGoogleSheets() {
                 "GET"
             );
 
-
         const menus =
             Array.isArray(
                 result.menus
@@ -913,7 +916,6 @@ async function loadMenusFromGoogleSheets() {
                 )
                     ? result.data
                     : [];
-
 
         state.menus =
             menus
@@ -953,15 +955,10 @@ async function loadMenusFromGoogleSheets() {
                             );
 
                         return {
-
                             id,
-
                             name,
-
                             category,
-
                             price
-
                         };
 
                     }
@@ -972,10 +969,8 @@ async function loadMenusFromGoogleSheets() {
                         menu.name
                 );
 
-
         const categories =
             getCategories();
-
 
         if (
             state.selectedCategory !== "all" &&
@@ -989,13 +984,9 @@ async function loadMenusFromGoogleSheets() {
 
         }
 
-
         renderCategories();
-
         renderMenus();
-
         renderManagedMenus();
-
 
         setConnectionStatus(
             "online",
@@ -1012,9 +1003,7 @@ async function loadMenusFromGoogleSheets() {
         );
 
         renderCategories();
-
         renderMenus();
-
         renderManagedMenus();
 
         setConnectionStatus(
@@ -1042,7 +1031,7 @@ async function loadMenusFromGoogleSheets() {
 
 /* =========================================================
    FILTER MENU
-========================================================= */
+   ========================================================= */
 
 function getFilteredMenus() {
 
@@ -1081,7 +1070,7 @@ function getFilteredMenus() {
 
 /* =========================================================
    RENDER MENU
-========================================================= */
+   ========================================================= */
 
 function renderMenus() {
 
@@ -1252,7 +1241,7 @@ function renderMenus() {
 
 /* =========================================================
    CATEGORIES
-========================================================= */
+   ========================================================= */
 
 function getCategories() {
 
@@ -1314,7 +1303,6 @@ function renderCategories() {
                 "all";
 
             renderCategories();
-
             renderMenus();
 
         }
@@ -1323,7 +1311,6 @@ function renderCategories() {
     container.appendChild(
         allButton
     );
-
 
     getCategories().forEach(
         category => {
@@ -1355,7 +1342,6 @@ function renderCategories() {
                         category;
 
                     renderCategories();
-
                     renderMenus();
 
                 }
@@ -1373,7 +1359,7 @@ function renderCategories() {
 
 /* =========================================================
    CART
-========================================================= */
+   ========================================================= */
 
 function addToCart(
     menuId
@@ -1452,7 +1438,6 @@ function addToCart(
     }
 
     renderCart();
-
     renderMenus();
 
 }
@@ -1470,7 +1455,6 @@ function removeFromCart(
         );
 
     renderCart();
-
     renderMenus();
 
 }
@@ -1516,7 +1500,6 @@ function changeCartQuantity(
         nextQuantity;
 
     renderCart();
-
     renderMenus();
 
 }
@@ -1524,7 +1507,7 @@ function changeCartQuantity(
 
 /* =========================================================
    CART TOTAL
-========================================================= */
+   ========================================================= */
 
 function getCartTotal() {
 
@@ -1572,7 +1555,7 @@ function getCartItemCount() {
 
 /* =========================================================
    RENDER CART
-========================================================= */
+   ========================================================= */
 
 function renderCart() {
 
@@ -1633,7 +1616,6 @@ function renderCart() {
             "none";
     }
 
-
     state.cart.forEach(
         item => {
 
@@ -1666,13 +1648,17 @@ function renderCart() {
                         </div>
 
                         <div class="cart-item-subtotal">
+
                             ${formatRupiah(
                                 item.price
                             )}
+
                             ×
+
                             ${formatNumber(
                                 item.quantity
                             )}
+
                         </div>
 
                     </div>
@@ -1740,7 +1726,6 @@ function renderCart() {
         }
     );
 
-
     list.querySelectorAll(
         ".quantity-button"
     ).forEach(
@@ -1763,7 +1748,6 @@ function renderCart() {
         }
     );
 
-
     list.querySelectorAll(
         ".remove-cart-item"
     ).forEach(
@@ -1783,7 +1767,6 @@ function renderCart() {
         }
     );
 
-
     updatePaymentUI();
 
 }
@@ -1791,7 +1774,7 @@ function renderCart() {
 
 /* =========================================================
    PAYMENT
-========================================================= */
+   ========================================================= */
 
 function getPaymentAmount() {
 
@@ -1830,7 +1813,6 @@ function updatePaymentUI() {
     const message =
         $("paymentMessage");
 
-
     if (changeElement) {
 
         changeElement.textContent =
@@ -1843,7 +1825,6 @@ function updatePaymentUI() {
 
     }
 
-
     if (payButton) {
 
         payButton.disabled =
@@ -1853,7 +1834,6 @@ function updatePaymentUI() {
             state.isSaving;
 
     }
-
 
     if (message) {
 
@@ -1884,7 +1864,7 @@ function updatePaymentUI() {
 
 /* =========================================================
    CLEAR CART
-========================================================= */
+   ========================================================= */
 
 function clearCart() {
 
@@ -1900,7 +1880,6 @@ function clearCart() {
     }
 
     renderCart();
-
     renderMenus();
 
 }
@@ -1908,7 +1887,7 @@ function clearCart() {
 
 /* =========================================================
    MENU MODAL
-========================================================= */
+   ========================================================= */
 
 function openMenuModal() {
 
@@ -1958,7 +1937,7 @@ function closeMenuModal() {
 
 /* =========================================================
    RESET MENU FORM
-========================================================= */
+   ========================================================= */
 
 function resetMenuForm() {
 
@@ -1985,7 +1964,6 @@ function resetMenuForm() {
 
     const title =
         $("menuModalTitle");
-
 
     if (form) {
         form.reset();
@@ -2017,8 +1995,10 @@ function resetMenuForm() {
     }
 
     if (title) {
+
         title.textContent =
             "KELOLA MENU";
+
     }
 
 }
@@ -2026,7 +2006,7 @@ function resetMenuForm() {
 
 /* =========================================================
    EDIT MENU
-========================================================= */
+   ========================================================= */
 
 function editMenu(
     menuId
@@ -2088,7 +2068,7 @@ function editMenu(
 
 /* =========================================================
    SAVE MENU
-========================================================= */
+   ========================================================= */
 
 async function saveMenu(
     event
@@ -2122,12 +2102,13 @@ async function saveMenu(
     const message =
         $("menuFormMessage");
 
-
     if (!name) {
 
         if (message) {
+
             message.textContent =
                 "Nama menu wajib diisi.";
+
         }
 
         return;
@@ -2140,14 +2121,15 @@ async function saveMenu(
     ) {
 
         if (message) {
+
             message.textContent =
                 "Harga menu tidak valid.";
+
         }
 
         return;
 
     }
-
 
     if (message) {
 
@@ -2176,19 +2158,15 @@ async function saveMenu(
                         id:
                             state.editingMenuId,
 
-                        name:
-                            name,
+                        name,
 
-                        category:
-                            category,
+                        category,
 
-                        price:
-                            price
+                        price
 
                     }
 
                 });
-
 
             if (
                 result.success === false
@@ -2201,20 +2179,14 @@ async function saveMenu(
 
             }
 
-
             showNotification(
-                "Menu berhasil diperbarui di Google Sheets.",
+                "Menu berhasil diperbarui.",
                 "success"
             );
 
         }
 
         else {
-
-            const menuId =
-                generateId(
-                    "menu"
-                );
 
             const result =
                 await googleRequest({
@@ -2225,21 +2197,19 @@ async function saveMenu(
                     menu: {
 
                         id:
-                            menuId,
+                            generateId(
+                                "menu"
+                            ),
 
-                        name:
-                            name,
+                        name,
 
-                        category:
-                            category,
+                        category,
 
-                        price:
-                            price
+                        price
 
                     }
 
                 });
-
 
             if (
                 result.success === false
@@ -2252,24 +2222,16 @@ async function saveMenu(
 
             }
 
-
             showNotification(
-                "Menu berhasil ditambahkan ke Google Sheets.",
+                "Menu berhasil ditambahkan.",
                 "success"
             );
 
         }
 
-
         resetMenuForm();
 
         await loadMenusFromGoogleSheets();
-
-        renderManagedMenus();
-
-        renderMenus();
-
-        renderCategories();
 
     }
 
@@ -2290,7 +2252,7 @@ async function saveMenu(
 
         showNotification(
             error.message ||
-            "Gagal menyimpan menu ke Google Sheets.",
+            "Gagal menyimpan menu.",
             "error"
         );
 
@@ -2308,7 +2270,7 @@ async function saveMenu(
 
 /* =========================================================
    DELETE MENU
-========================================================= */
+   ========================================================= */
 
 async function deleteMenu(
     menuId
@@ -2351,8 +2313,7 @@ async function deleteMenu(
                 action:
                     "deleteMenu",
 
-                menuId:
-                    menuId
+                menuId
 
             });
 
@@ -2367,7 +2328,6 @@ async function deleteMenu(
 
         }
 
-
         state.cart =
             state.cart.filter(
                 item =>
@@ -2375,20 +2335,12 @@ async function deleteMenu(
                     menuId
             );
 
-
         await loadMenusFromGoogleSheets();
 
         renderCart();
 
-        renderMenus();
-
-        renderCategories();
-
-        renderManagedMenus();
-
-
         showNotification(
-            "Menu berhasil dihapus dari Google Sheets.",
+            "Menu berhasil dihapus.",
             "success"
         );
 
@@ -2421,7 +2373,7 @@ async function deleteMenu(
 
 /* =========================================================
    RENDER MANAGED MENU
-========================================================= */
+   ========================================================= */
 
 function renderManagedMenus() {
 
@@ -2456,7 +2408,6 @@ function renderManagedMenus() {
             "none";
     }
 
-
     state.menus.forEach(
         menu => {
 
@@ -2479,9 +2430,11 @@ function renderManagedMenus() {
                     </div>
 
                     <div class="managed-menu-price">
+
                         ${formatRupiah(
                             menu.price
                         )}
+
                         ${
                             menu.category
                                 ? " • " +
@@ -2490,6 +2443,7 @@ function renderManagedMenus() {
                                   )
                                 : ""
                         }
+
                     </div>
 
                 </div>
@@ -2527,7 +2481,6 @@ function renderManagedMenus() {
         }
     );
 
-
     list.querySelectorAll(
         ".menu-edit-button"
     ).forEach(
@@ -2546,7 +2499,6 @@ function renderManagedMenus() {
 
         }
     );
-
 
     list.querySelectorAll(
         ".menu-delete-button"
@@ -2572,7 +2524,7 @@ function renderManagedMenus() {
 
 /* =========================================================
    VALIDATE CART
-========================================================= */
+   ========================================================= */
 
 function validateCart() {
 
@@ -2589,7 +2541,6 @@ function validateCart() {
 
     }
 
-
     for (
         const item of state.cart
     ) {
@@ -2605,7 +2556,6 @@ function validateCart() {
 
         }
 
-
         const quantity =
             toNumber(
                 item.quantity
@@ -2615,7 +2565,6 @@ function validateCart() {
             toNumber(
                 item.price
             );
-
 
         if (
             quantity <= 0 ||
@@ -2629,7 +2578,6 @@ function validateCart() {
             );
 
         }
-
 
         if (
             price < 0
@@ -2648,12 +2596,11 @@ function validateCart() {
 
 /* =========================================================
    CREATE SALE
-========================================================= */
+   ========================================================= */
 
 function createSale() {
 
     validateCart();
-
 
     const total =
         getCartTotal();
@@ -2665,7 +2612,6 @@ function createSale() {
         payment -
         total;
 
-
     if (
         total <= 0
     ) {
@@ -2675,7 +2621,6 @@ function createSale() {
         );
 
     }
-
 
     if (
         payment < total
@@ -2687,60 +2632,23 @@ function createSale() {
 
     }
 
-
     const now =
         new Date();
-
-
-    const transactionNumber =
-        generateTransactionNumber();
-
-
-    /*
-     * ID transaksi dibuat satu kali
-     * dan dikirim ke Google Sheets.
-     */
-    const saleId =
-        generateId(
-            "sale"
-        );
-
-
-    /*
-     * TANGGAL_KEY dibuat dari tanggal
-     * lokal browser.
-     */
-    const dateKey =
-        getTodayKey();
-
 
     const sale = {
 
         id:
-            saleId,
+            generateId(
+                "sale"
+            ),
 
-        transactionNumber,
+        transactionNumber:
+            generateTransactionNumber(),
 
-        /*
-         * Nama field utama frontend.
-         */
-        dateKey,
+        dateKey:
+            getTodayKey(),
 
-        /*
-         * Field tambahan supaya backend
-         * yang menggunakan TANGGAL_KEY
-         * tetap bisa menerima.
-         */
-        TANGGAL_KEY:
-            dateKey,
-
-        /*
-         * TANGGAL berupa ISO datetime.
-         */
         date:
-            now.toISOString(),
-
-        TANGGAL:
             now.toISOString(),
 
         items:
@@ -2790,13 +2698,10 @@ function createSale() {
 
     };
 
-
     if (
         !sale.id ||
         !sale.transactionNumber ||
         !sale.dateKey ||
-        !sale.TANGGAL_KEY ||
-        !sale.date ||
         !Array.isArray(
             sale.items
         ) ||
@@ -2812,15 +2717,14 @@ function createSale() {
 
     }
 
-
     return sale;
 
 }
 
 
 /* =========================================================
-   VALIDATE SAVED SALE RESPONSE
-========================================================= */
+   VALIDATE SALE RESPONSE
+   ========================================================= */
 
 function validateSaleResponse(
     result,
@@ -2835,7 +2739,6 @@ function validateSaleResponse(
 
     }
 
-
     if (
         result.success === false
     ) {
@@ -2848,20 +2751,10 @@ function validateSaleResponse(
 
     }
 
-
     const savedSale =
         result.sale ||
         result.data ||
         result;
-
-
-    const returnedId =
-        toSafeString(
-            savedSale.id ??
-            savedSale.ID ??
-            savedSale.ID_PENJUALAN
-        );
-
 
     const returnedNumber =
         toSafeString(
@@ -2870,40 +2763,6 @@ function validateSaleResponse(
             savedSale.NO_TRANSAKSI
         );
 
-
-    const returnedDateKey =
-        normalizeDateKey(
-            savedSale.TANGGAL_KEY ??
-            savedSale.tanggal_key ??
-            savedSale.dateKey ??
-            savedSale.DATE_KEY
-        );
-
-
-    /*
-     * Jika server mengirim ID,
-     * pastikan tidak kosong.
-     */
-    if (
-        (
-            "id" in savedSale ||
-            "ID" in savedSale ||
-            "ID_PENJUALAN" in savedSale
-        ) &&
-        !returnedId
-    ) {
-
-        throw new Error(
-            "Server mengembalikan ID transaksi kosong."
-        );
-
-    }
-
-
-    /*
-     * Jika server mengirim nomor transaksi,
-     * pastikan tidak kosong.
-     */
     if (
         "transactionNumber" in savedSale ||
         "NO_TRANSAKSI" in savedSale ||
@@ -2922,171 +2781,24 @@ function validateSaleResponse(
 
     }
 
-
-    /*
-     * Jika server mengirim TANGGAL_KEY,
-     * pastikan formatnya valid.
-     */
-    if (
-        (
-            "TANGGAL_KEY" in savedSale ||
-            "tanggal_key" in savedSale ||
-            "dateKey" in savedSale ||
-            "DATE_KEY" in savedSale
-        ) &&
-        !returnedDateKey
-    ) {
-
-        throw new Error(
-            "Server mengembalikan TANGGAL_KEY kosong atau tidak valid."
-        );
-
-    }
-
-
-    /*
-     * Tidak dianggap gagal hanya karena
-     * ID response berbeda. Tetapi dicatat.
-     */
-    if (
-        returnedId &&
-        sale.id &&
-        returnedId !== sale.id
-    ) {
-
-        console.warn(
-            "ID transaksi response berbeda:",
-            {
-                local:
-                    sale.id,
-
-                server:
-                    returnedId
-            }
-        );
-
-    }
-
-
-    /*
-     * Nomor transaksi seharusnya sama
-     * jika server mengembalikannya.
-     */
-    if (
-        returnedNumber &&
-        sale.transactionNumber &&
-        returnedNumber !==
-            sale.transactionNumber
-    ) {
-
-        console.warn(
-            "Nomor transaksi response berbeda:",
-            {
-                local:
-                    sale.transactionNumber,
-
-                server:
-                    returnedNumber
-            }
-        );
-
-    }
-
-
     return true;
 
 }
 
 
 /* =========================================================
-   CEK DUPLICATE TRANSACTION
-========================================================= */
-
-function hasLocalDuplicateSale(
-    sale
-) {
-
-    if (!sale) {
-        return false;
-    }
-
-
-    const transactionNumber =
-        toSafeString(
-            sale.transactionNumber
-        );
-
-
-    const id =
-        toSafeString(
-            sale.id
-        );
-
-
-    return state.todaySales.some(
-        existing => {
-
-            const existingNumber =
-                toSafeString(
-                    existing.transactionNumber
-                );
-
-            const existingId =
-                toSafeString(
-                    existing.id
-                );
-
-
-            if (
-                transactionNumber &&
-                existingNumber &&
-                transactionNumber ===
-                    existingNumber
-            ) {
-
-                return true;
-
-            }
-
-
-            if (
-                id &&
-                existingId &&
-                id === existingId
-            ) {
-
-                return true;
-
-            }
-
-
-            return false;
-
-        }
-    );
-
-}
-
-
-/* =========================================================
-   BAYAR
-========================================================= */
+   PROCESS PAYMENT
+   ========================================================= */
 
 async function processPayment() {
 
-    /*
-     * Tombol bayar tidak boleh menjalankan
-     * dua request bersamaan.
-     */
     if (
         state.isSaving
     ) {
         return;
     }
 
-
     let sale;
-
 
     try {
 
@@ -3107,16 +2819,10 @@ async function processPayment() {
 
     }
 
-
-    /*
-     * Double click protection.
-     */
     state.isSaving =
         true;
 
-
     updatePaymentUI();
-
 
     try {
 
@@ -3125,46 +2831,31 @@ async function processPayment() {
             "Menyimpan transaksi..."
         );
 
-
-        /*
-         * Save ke Google Sheets.
-         */
         await saveSaleToGoogleSheets(
             sale
         );
 
-
-        /*
-         * Simpan sale yang sudah sukses.
-         */
         state.lastCompletedSale =
             sale;
 
-
         /*
-         * Refresh dari Google Sheets.
+         * Setelah transaksi berhasil,
+         * ambil ulang statistik langsung dari Google Sheets.
          */
+
         await loadTodaySalesFromGoogleSheets();
 
-
-        /*
-         * Keranjang hanya dikosongkan
-         * SETELAH save berhasil.
-         */
         clearCart();
-
 
         setConnectionStatus(
             "online",
             "Google Sheets tersambung"
         );
 
-
         showNotification(
-            "Pembayaran berhasil disimpan ke Google Sheets.",
+            "Pembayaran berhasil disimpan.",
             "success"
         );
-
 
         openPaymentSuccessModal(
             sale
@@ -3179,21 +2870,19 @@ async function processPayment() {
             error
         );
 
+        /*
+         * PENTING:
+         * Keranjang TIDAK dikosongkan jika save gagal.
+         */
 
         setConnectionStatus(
             "offline",
             "Gagal menyimpan transaksi"
         );
 
-
-        /*
-         * PENTING:
-         * Keranjang TIDAK dikosongkan
-         * jika save gagal.
-         */
         showNotification(
             error.message ||
-            "Transaksi gagal disimpan ke Google Sheets.",
+            "Transaksi gagal disimpan.",
             "error"
         );
 
@@ -3213,7 +2902,7 @@ async function processPayment() {
 
 /* =========================================================
    SAVE SALE
-========================================================= */
+   ========================================================= */
 
 async function saveSaleToGoogleSheets(
     sale
@@ -3227,52 +2916,20 @@ async function saveSaleToGoogleSheets(
 
     }
 
-
-    /*
-     * Validasi ulang sebelum dikirim.
-     */
-    if (
-        !sale.id ||
-        !sale.transactionNumber
-    ) {
-
-        throw new Error(
-            "ID atau nomor transaksi tidak valid."
-        );
-
-    }
-
-
-    if (
-        !normalizeDateKey(
-            sale.dateKey
-        )
-    ) {
-
-        throw new Error(
-            "TANGGAL_KEY transaksi tidak valid."
-        );
-
-    }
-
-
     const result =
         await googleRequest({
 
             action:
                 "saveSale",
 
-            sale:
-                sale
+            sale
 
         });
-
 
     validateSaleResponse(
         result,
         sale
     );
-
 
     return result;
 
@@ -3281,6 +2938,15 @@ async function saveSaleToGoogleSheets(
 
 /* =========================================================
    LOAD TODAY SALES
+   =========================================================
+
+   CATATAN:
+   Data ini hanya dipakai untuk:
+   - jumlah transaksi
+   - total penjualan
+
+   Tidak lagi digunakan untuk menampilkan
+   daftar transaksi di web.
 ========================================================= */
 
 async function loadTodaySalesFromGoogleSheets() {
@@ -3291,16 +2957,13 @@ async function loadTodaySalesFromGoogleSheets() {
         return;
     }
 
-
     state.isLoadingSales =
         true;
-
 
     try {
 
         const today =
             getTodayKey();
-
 
         const result =
             await googleRequest(
@@ -3309,21 +2972,16 @@ async function loadTodaySalesFromGoogleSheets() {
                         "getTodaySales",
 
                     dateKey:
-                        today,
-
-                    TANGGAL_KEY:
                         today
 
                 },
                 "GET"
             );
 
-
         console.log(
             "[GOOGLE SHEETS] getTodaySales:",
             result
         );
-
 
         const sales =
             Array.isArray(
@@ -3340,15 +2998,16 @@ async function loadTodaySalesFromGoogleSheets() {
                         ? result
                         : [];
 
-
         state.todaySales =
             normalizeSales(
                 sales
             );
 
+        /*
+         * Hanya render statistik.
+         */
 
         renderSalesHistory();
-
 
         setConnectionStatus(
             "online",
@@ -3364,19 +3023,19 @@ async function loadTodaySalesFromGoogleSheets() {
             error
         );
 
+        state.todaySales =
+            [];
 
         renderSalesHistory();
 
-
         setConnectionStatus(
             "offline",
-            "Gagal mengambil riwayat Google Sheets"
+            "Gagal mengambil data penjualan"
         );
-
 
         showNotification(
             error.message ||
-            "Gagal mengambil riwayat penjualan.",
+            "Gagal mengambil data penjualan.",
             "error"
         );
 
@@ -3394,7 +3053,7 @@ async function loadTodaySalesFromGoogleSheets() {
 
 /* =========================================================
    NORMALIZE SALES
-========================================================= */
+   ========================================================= */
 
 function normalizeSales(
     sales
@@ -3410,14 +3069,13 @@ function normalizeSales(
 
     }
 
-
     return sales
         .map(
             sale => {
 
                 /*
                  * =====================================================
-                 * ROW ARRAY
+                 * ROW ARRAY DARI SHEET PENJUALAN
                  *
                  * A = ID_PENJUALAN
                  * B = NO_TRANSAKSI
@@ -3435,70 +3093,44 @@ function normalizeSales(
                     )
                 ) {
 
-                    const id =
-                        toSafeString(
-                            sale[0]
-                        );
-
-
-                    const transactionNumber =
-                        toSafeString(
-                            sale[1]
-                        );
-
-
-                    const rawDate =
-                        sale[2] ??
-                        "";
-
-
-                    const dateKey =
-                        normalizeDateKey(
-                            sale[3]
-                        );
-
-
-                    const total =
-                        toNumber(
-                            sale[4]
-                        );
-
-
-                    const payment =
-                        toNumber(
-                            sale[5]
-                        );
-
-
-                    const change =
-                        toNumber(
-                            sale[6]
-                        );
-
-
                     return {
 
-                        id,
+                        id:
+                            toSafeString(
+                                sale[0]
+                            ),
 
-                        transactionNumber,
-
-                        dateKey,
-
-                        TANGGAL_KEY:
-                            dateKey,
+                        transactionNumber:
+                            toSafeString(
+                                sale[1]
+                            ),
 
                         date:
-                            rawDate ||
-                            new Date().toISOString(),
+                            sale[2] ||
+                            "",
+
+                        dateKey:
+                            normalizeDateKey(
+                                sale[3]
+                            ),
+
+                        total:
+                            toNumber(
+                                sale[4]
+                            ),
+
+                        payment:
+                            toNumber(
+                                sale[5]
+                            ),
+
+                        change:
+                            toNumber(
+                                sale[6]
+                            ),
 
                         items:
                             [],
-
-                        total,
-
-                        payment,
-
-                        change,
 
                         itemCount:
                             0
@@ -3506,7 +3138,6 @@ function normalizeSales(
                     };
 
                 }
-
 
                 /*
                  * =====================================================
@@ -3522,7 +3153,6 @@ function normalizeSales(
                         sale.id_penjualan
                     );
 
-
                 const transactionNumber =
                     toSafeString(
                         sale.transactionNumber ??
@@ -3531,7 +3161,6 @@ function normalizeSales(
                         sale.NO_TRANSAKSI
                     );
 
-
                 const rawDate =
                     sale.date ??
                     sale.timestamp ??
@@ -3539,15 +3168,13 @@ function normalizeSales(
                     sale.tanggal ??
                     "";
 
-
                 let dateKey =
                     normalizeDateKey(
                         sale.TANGGAL_KEY ??
                         sale.tanggal_key ??
-                        sale.dateKey ??
-                        sale.DATE_KEY
+                        sale.DATE_KEY ??
+                        sale.dateKey
                     );
-
 
                 if (
                     !dateKey &&
@@ -3561,13 +3188,11 @@ function normalizeSales(
 
                 }
 
-
                 const total =
                     toNumber(
                         sale.total ??
                         sale.TOTAL
                     );
-
 
                 const payment =
                     toNumber(
@@ -3576,14 +3201,12 @@ function normalizeSales(
                         sale.PEMBAYARAN
                     );
 
-
                 const change =
                     toNumber(
                         sale.change ??
                         sale.kembalian ??
                         sale.KEMBALIAN
                     );
-
 
                 let items =
                     sale.items ??
@@ -3592,7 +3215,6 @@ function normalizeSales(
                     sale.details ??
                     sale.DETAIL ??
                     [];
-
 
                 if (
                     typeof items ===
@@ -3610,18 +3232,12 @@ function normalizeSales(
 
                     catch (error) {
 
-                        console.warn(
-                            "Detail transaksi bukan JSON valid:",
-                            error
-                        );
-
                         items =
                             [];
 
                     }
 
                 }
-
 
                 if (
                     !Array.isArray(
@@ -3634,101 +3250,13 @@ function normalizeSales(
 
                 }
 
-
-                items =
-                    items.map(
-                        item => {
-
-                            const price =
-                                toNumber(
-                                    item.price ??
-                                    item.harga ??
-                                    item.HARGA
-                                );
-
-
-                            const quantity =
-                                toNumber(
-                                    item.quantity ??
-                                    item.jumlah ??
-                                    item.JUMLAH
-                                );
-
-
-                            const subtotalValue =
-                                item.subtotal ??
-                                item.SUBTOTAL;
-
-
-                            const subtotal =
-                                subtotalValue !==
-                                    undefined &&
-                                subtotalValue !==
-                                    null &&
-                                subtotalValue !==
-                                    ""
-                                    ? toNumber(
-                                        subtotalValue
-                                    )
-                                    : price *
-                                      quantity;
-
-
-                            return {
-
-                                menuId:
-                                    toSafeString(
-                                        item.menuId ??
-                                        item.MENU_ID ??
-                                        item.id ??
-                                        item.ID_MENU
-                                    ),
-
-                                name:
-                                    toSafeString(
-                                        item.name ??
-                                        item.nama ??
-                                        item.NAMA
-                                    ),
-
-                                category:
-                                    toSafeString(
-                                        item.category ??
-                                        item.kategori ??
-                                        item.KATEGORI
-                                    ),
-
-                                price,
-
-                                quantity,
-
-                                subtotal
-
-                            };
-
-                        }
-                    );
-
-
                 const itemCount =
                     toNumber(
                         sale.itemCount ??
                         sale.jumlahItem ??
                         sale.JUMLAH_ITEM ??
                         sale.jumlah_item
-                    ) ||
-                    items.reduce(
-                        (
-                            sum,
-                            item
-                        ) =>
-                            sum +
-                            toNumber(
-                                item.quantity
-                            ),
-                        0
                     );
-
 
                 return {
 
@@ -3736,22 +3264,18 @@ function normalizeSales(
 
                     transactionNumber,
 
-                    dateKey,
-
-                    TANGGAL_KEY:
-                        dateKey,
-
                     date:
-                        rawDate ||
-                        new Date().toISOString(),
+                        rawDate,
 
-                    items,
+                    dateKey,
 
                     total,
 
                     payment,
 
                     change,
+
+                    items,
 
                     itemCount
 
@@ -3771,8 +3295,134 @@ function normalizeSales(
 
 
 /* =========================================================
-   PAYMENT SUCCESS MODAL
+   RENDER SALES HISTORY
+   =========================================================
+
+   UPDATE PENTING:
+   TIDAK MENAMPILKAN DAFTAR TRANSAKSI.
+
+   Hanya:
+   - jumlah transaksi hari ini
+   - total penjualan hari ini
 ========================================================= */
+
+function renderSalesHistory() {
+
+    const list =
+        $("salesHistory");
+
+    const empty =
+        $("emptySales");
+
+    const count =
+        $("todayTransactionCount");
+
+    const total =
+        $("todaySalesTotal");
+
+    const today =
+        getTodayKey();
+
+    /*
+     * Filter berdasarkan TANGGAL_KEY.
+     */
+
+    const sales =
+        state.todaySales.filter(
+            sale => {
+
+                const key =
+                    normalizeDateKey(
+                        sale.dateKey
+                    );
+
+                return key === today;
+
+            }
+        );
+
+    /*
+     * JUMLAH TRANSAKSI
+     */
+
+    if (count) {
+
+        count.textContent =
+            formatNumber(
+                sales.length
+            );
+
+    }
+
+    /*
+     * TOTAL PENJUALAN
+     */
+
+    const salesTotal =
+        sales.reduce(
+            (
+                sum,
+                sale
+            ) => {
+
+                return (
+                    sum +
+                    toNumber(
+                        sale.total
+                    )
+                );
+
+            },
+            0
+        );
+
+    if (total) {
+
+        total.textContent =
+            formatRupiah(
+                salesTotal
+            );
+
+    }
+
+    /*
+     * HAPUS DAFTAR TRANSAKSI
+     */
+
+    if (list) {
+
+        list.innerHTML =
+            "";
+
+        list.style.display =
+            "none";
+
+    }
+
+    /*
+     * HILANGKAN EMPTY STATE
+     *
+     * Supaya tulisan:
+     * "BELUM ADA PENJUALAN"
+     * tidak muncul lagi.
+     */
+
+    if (empty) {
+
+        empty.style.display =
+            "none";
+
+        empty.hidden =
+            true;
+
+    }
+
+}
+
+
+/* =========================================================
+   PAYMENT SUCCESS MODAL
+   ========================================================= */
 
 function openPaymentSuccessModal(
     sale
@@ -3781,7 +3431,6 @@ function openPaymentSuccessModal(
     if (!sale) {
         return;
     }
-
 
     if (
         $("successTransactionNumber")
@@ -3792,7 +3441,6 @@ function openPaymentSuccessModal(
                 sale.transactionNumber;
 
     }
-
 
     if (
         $("successTotal")
@@ -3806,7 +3454,6 @@ function openPaymentSuccessModal(
 
     }
 
-
     if (
         $("successPayment")
     ) {
@@ -3818,7 +3465,6 @@ function openPaymentSuccessModal(
                 );
 
     }
-
 
     if (
         $("successChange")
@@ -3832,19 +3478,15 @@ function openPaymentSuccessModal(
 
     }
 
-
     const modal =
         $("paymentSuccessModal");
-
 
     if (!modal) {
         return;
     }
 
-
     modal.hidden =
         false;
-
 
     modal.setAttribute(
         "aria-hidden",
@@ -3854,20 +3496,21 @@ function openPaymentSuccessModal(
 }
 
 
+/* =========================================================
+   CLOSE PAYMENT SUCCESS
+   ========================================================= */
+
 function closePaymentSuccessModal() {
 
     const modal =
         $("paymentSuccessModal");
 
-
     if (!modal) {
         return;
     }
 
-
     modal.hidden =
         true;
-
 
     modal.setAttribute(
         "aria-hidden",
@@ -3879,7 +3522,7 @@ function closePaymentSuccessModal() {
 
 /* =========================================================
    PRINT RECEIPT
-========================================================= */
+   ========================================================= */
 
 function printReceipt(
     sale
@@ -3889,11 +3532,9 @@ function printReceipt(
         return;
     }
 
-
     const printArea =
         $("printArea") ||
         $("printReceipt");
-
 
     if (!printArea) {
 
@@ -3906,14 +3547,12 @@ function printReceipt(
 
     }
 
-
     const items =
         Array.isArray(
             sale.items
         )
             ? sale.items
             : [];
-
 
     const itemsHtml =
         items
@@ -3923,27 +3562,35 @@ function printReceipt(
                     <div class="receipt-item">
 
                         <div class="receipt-item-name">
+
                             ${escapeHtml(
                                 item.name
                             )}
+
                         </div>
 
                         <div class="receipt-item-detail">
 
                             <span>
+
                                 ${formatNumber(
                                     item.quantity
                                 )}
+
                                 ×
+
                                 ${formatRupiah(
                                     item.price
                                 )}
+
                             </span>
 
                             <strong>
+
                                 ${formatRupiah(
                                     item.subtotal
                                 )}
+
                             </strong>
 
                         </div>
@@ -3953,7 +3600,6 @@ function printReceipt(
                 `
             )
             .join("");
-
 
     printArea.innerHTML = `
 
@@ -3990,22 +3636,6 @@ function printReceipt(
                 <span>
                     ${escapeHtml(
                         sale.transactionNumber
-                    )}
-                </span>
-
-            </div>
-
-            <div class="receipt-info-row">
-
-                <span>
-                    Tanggal Key
-                </span>
-
-                <span>
-                    ${escapeHtml(
-                        sale.dateKey ||
-                        sale.TANGGAL_KEY ||
-                        "-"
                     )}
                 </span>
 
@@ -4083,510 +3713,103 @@ function printReceipt(
 
     `;
 
-
     window.print();
 
 }
 
 
 /* =========================================================
-   SALES HISTORY
-========================================================= */
+   DOWNLOAD PENJUALAN HARI INI
+   =========================================================
 
-function renderSalesHistory() {
+   PENTING:
+   Tombol download mengambil DATA TERBARU
+   langsung dari Google Sheets.
 
-    const list =
-        $("salesHistory");
-
-    const empty =
-        $("emptySales");
-
-    const count =
-        $("todayTransactionCount");
-
-    const total =
-        $("todaySalesTotal");
-
-    if (!list) {
-        return;
-    }
-
-
-    list.innerHTML =
-        "";
-
-
-    const today =
-        getTodayKey();
-
-
-    const sales =
-        state.todaySales.filter(
-            sale => {
-
-                const saleKey =
-                    normalizeDateKey(
-                        sale.dateKey ||
-                        sale.TANGGAL_KEY ||
-                        sale.date
-                    );
-
-                return (
-                    saleKey ===
-                    today
-                );
-
-            }
-        );
-
-
-    if (count) {
-
-        count.textContent =
-            formatNumber(
-                sales.length
-            );
-
-    }
-
-
-    const salesTotal =
-        sales.reduce(
-            (
-                sum,
-                sale
-            ) =>
-                sum +
-                toNumber(
-                    sale.total
-                ),
-            0
-        );
-
-
-    if (total) {
-
-        total.textContent =
-            formatRupiah(
-                salesTotal
-            );
-
-    }
-
-
-    if (
-        sales.length === 0
-    ) {
-
-        if (empty) {
-            empty.style.display =
-                "";
-        }
-
-        return;
-
-    }
-
-
-    if (empty) {
-        empty.style.display =
-            "none";
-    }
-
-
-    [...sales]
-        .reverse()
-        .forEach(
-            sale => {
-
-                const item =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                item.className =
-                    "sale-item";
-
-
-                const itemCount =
-                    sale.items.length > 0
-                        ? sale.items.reduce(
-                            (
-                                sum,
-                                cartItem
-                            ) =>
-                                sum +
-                                toNumber(
-                                    cartItem.quantity
-                                ),
-                            0
-                        )
-                        : toNumber(
-                            sale.itemCount
-                        );
-
-
-                item.innerHTML = `
-
-                    <div class="sale-item-header">
-
-                        <div class="sale-item-number">
-                            ${escapeHtml(
-                                sale.transactionNumber ||
-                                sale.id ||
-                                "-"
-                            )}
-                        </div>
-
-                        <div class="sale-item-total">
-                            ${formatRupiah(
-                                sale.total
-                            )}
-                        </div>
-
-                    </div>
-
-                    <div class="sale-item-info">
-
-                        ${formatDateTimeIndonesia(
-                            sale.date
-                        )}
-
-                        •
-
-                        ${formatNumber(
-                            itemCount
-                        )}
-                        item
-
-                    </div>
-
-                `;
-
-
-                item.addEventListener(
-                    "click",
-                    () => {
-
-                        openSaleDetail(
-                            sale
-                        );
-
-                    }
-                );
-
-
-                list.appendChild(
-                    item
-                );
-
-            }
-        );
-
-}
-
-
-/* =========================================================
-   SALE DETAIL
-========================================================= */
-
-function openSaleDetail(
-    sale
-) {
-
-    if (!sale) {
-        return;
-    }
-
-
-    state.selectedSale =
-        sale;
-
-
-    if (
-        $("saleDetailTransactionNumber")
-    ) {
-
-        $("saleDetailTransactionNumber")
-            .textContent =
-                sale.transactionNumber ||
-                sale.id ||
-                "-";
-
-    }
-
-
-    const content =
-        $("saleDetailContent");
-
-
-    if (!content) {
-        return;
-    }
-
-
-    content.innerHTML =
-        "";
-
-
-    if (
-        !sale.items ||
-        sale.items.length === 0
-    ) {
-
-        const noDetail =
-            document.createElement(
-                "div"
-            );
-
-
-        noDetail.className =
-            "sale-detail-row";
-
-
-        noDetail.innerHTML = `
-
-            <div class="sale-detail-name">
-
-                Detail item transaksi
-                tidak dikirim oleh server.
-
-            </div>
-
-            <div class="sale-detail-value">
-
-                ${formatNumber(
-                    sale.itemCount
-                )}
-                item
-
-            </div>
-
-        `;
-
-
-        content.appendChild(
-            noDetail
-        );
-
-    }
-
-    else {
-
-        sale.items.forEach(
-            item => {
-
-                const row =
-                    document.createElement(
-                        "div"
-                    );
-
-
-                row.className =
-                    "sale-detail-row";
-
-
-                row.innerHTML = `
-
-                    <div class="sale-detail-name">
-
-                        ${escapeHtml(
-                            item.name
-                        )}
-
-                        <br>
-
-                        <small>
-
-                            ${formatNumber(
-                                item.quantity
-                            )}
-                            ×
-                            ${formatRupiah(
-                                item.price
-                            )}
-
-                        </small>
-
-                    </div>
-
-                    <div class="sale-detail-value">
-
-                        ${formatRupiah(
-                            item.subtotal
-                        )}
-
-                    </div>
-
-                `;
-
-
-                content.appendChild(
-                    row
-                );
-
-            }
-        );
-
-    }
-
-
-    const summary =
-        document.createElement(
-            "div"
-        );
-
-
-    summary.innerHTML = `
-
-        <div class="summary-row">
-
-            <span>
-                TOTAL
-            </span>
-
-            <strong>
-                ${formatRupiah(
-                    sale.total
-                )}
-            </strong>
-
-        </div>
-
-        <div class="summary-row">
-
-            <span>
-                BAYAR
-            </span>
-
-            <strong>
-                ${formatRupiah(
-                    sale.payment
-                )}
-            </strong>
-
-        </div>
-
-        <div class="summary-row">
-
-            <span>
-                KEMBALIAN
-            </span>
-
-            <strong>
-                ${formatRupiah(
-                    sale.change
-                )}
-            </strong>
-
-        </div>
-
-        <div class="summary-row">
-
-            <span>
-                TANGGAL_KEY
-            </span>
-
-            <strong>
-                ${escapeHtml(
-                    sale.dateKey ||
-                    sale.TANGGAL_KEY ||
-                    "-"
-                )}
-            </strong>
-
-        </div>
-
-    `;
-
-
-    content.appendChild(
-        summary
-    );
-
-
-    const modal =
-        $("saleDetailModal");
-
-
-    if (!modal) {
-        return;
-    }
-
-
-    modal.hidden =
-        false;
-
-
-    modal.setAttribute(
-        "aria-hidden",
-        "false"
-    );
-
-}
-
-
-function closeSaleDetail() {
-
-    const modal =
-        $("saleDetailModal");
-
-
-    if (!modal) {
-        return;
-    }
-
-
-    modal.hidden =
-        true;
-
-
-    modal.setAttribute(
-        "aria-hidden",
-        "true"
-    );
-
-
-    state.selectedSale =
-        null;
-
-}
-
-
-/* =========================================================
-   DOWNLOAD TODAY SALES
+   Tidak mengambil dari daftar transaksi HTML.
 ========================================================= */
 
 async function downloadTodaySales() {
 
     try {
 
-        await loadTodaySalesFromGoogleSheets();
-
+        showNotification(
+            "Mengambil data penjualan langsung dari Google Sheets...",
+            "success"
+        );
 
         const today =
             getTodayKey();
 
+        /*
+         * Request ulang langsung ke Google Sheets.
+         */
+
+        const result =
+            await googleRequest(
+                {
+                    action:
+                        "getTodaySales",
+
+                    dateKey:
+                        today
+
+                },
+                "GET"
+            );
+
+        const rawSales =
+            Array.isArray(
+                result?.sales
+            )
+                ? result.sales
+                : Array.isArray(
+                    result?.data
+                )
+                    ? result.data
+                    : Array.isArray(
+                        result
+                    )
+                        ? result
+                        : [];
 
         const sales =
-            state.todaySales.filter(
+            normalizeSales(
+                rawSales
+            )
+            .filter(
                 sale =>
                     normalizeDateKey(
-                        sale.dateKey ||
-                        sale.TANGGAL_KEY ||
-                        sale.date
+                        sale.dateKey
                     ) ===
                     today
             );
 
+        /*
+         * Simpan data terbaru ke state.
+         */
+
+        state.todaySales =
+            sales;
+
+        /*
+         * Update angka di web.
+         */
+
+        renderSalesHistory();
+
+        /*
+         * Jika kosong.
+         */
 
         if (
             sales.length === 0
         ) {
 
             showNotification(
-                "Belum ada penjualan hari ini.",
+                `Tidak ada transaksi pada ${formatDateIndonesia(
+                    today
+                )}.`,
                 "warning"
             );
 
@@ -4594,127 +3817,80 @@ async function downloadTodaySales() {
 
         }
 
+        /*
+         * CSV
+         */
 
         const rows = [];
 
-
         rows.push([
-
             "Tanggal",
-
-            "Tanggal Key",
-
+            "TANGGAL_KEY",
+            "ID_PENJUALAN",
             "No Transaksi",
-
-            "ID Penjualan",
-
-            "Menu",
-
-            "Kategori",
-
-            "Harga",
-
-            "Jumlah",
-
-            "Subtotal",
-
-            "Total Transaksi",
-
+            "Total",
             "Pembayaran",
-
             "Kembalian"
-
         ]);
-
 
         sales.forEach(
             sale => {
 
-                if (
-                    sale.items &&
-                    sale.items.length > 0
-                ) {
+                rows.push([
 
-                    sale.items.forEach(
-                        item => {
+                    formatDateTimeIndonesia(
+                        sale.date
+                    ),
 
-                            rows.push([
+                    sale.dateKey,
 
-                                formatDateTimeIndonesia(
-                                    sale.date
-                                ),
+                    sale.id,
 
-                                sale.dateKey ||
-                                    sale.TANGGAL_KEY ||
-                                    "",
+                    sale.transactionNumber,
 
-                                sale.transactionNumber,
+                    sale.total,
 
-                                sale.id,
+                    sale.payment,
 
-                                item.name,
+                    sale.change
 
-                                item.category ||
-                                    "",
-
-                                item.price,
-
-                                item.quantity,
-
-                                item.subtotal,
-
-                                sale.total,
-
-                                sale.payment,
-
-                                sale.change
-
-                            ]);
-
-                        }
-                    );
-
-                }
-
-                else {
-
-                    rows.push([
-
-                        formatDateTimeIndonesia(
-                            sale.date
-                        ),
-
-                        sale.dateKey ||
-                            sale.TANGGAL_KEY ||
-                            "",
-
-                        sale.transactionNumber,
-
-                        sale.id,
-
-                        "",
-
-                        "",
-
-                        "",
-
-                        sale.itemCount,
-
-                        "",
-
-                        sale.total,
-
-                        sale.payment,
-
-                        sale.change
-
-                    ]);
-
-                }
+                ]);
 
             }
         );
 
+        /*
+         * TOTAL DI AKHIR FILE
+         */
+
+        const totalPenjualan =
+            sales.reduce(
+                (
+                    sum,
+                    sale
+                ) =>
+                    sum +
+                    toNumber(
+                        sale.total
+                    ),
+                0
+            );
+
+        rows.push([]);
+
+        rows.push([
+            "TOTAL TRANSAKSI",
+            sales.length
+        ]);
+
+        rows.push([
+            "TOTAL PENJUALAN",
+            totalPenjualan
+        ]);
+
+        /*
+         * Buat CSV.
+         */
 
         const csv =
             rows
@@ -4731,7 +3907,6 @@ async function downloadTodaySales() {
                 )
                 .join("\r\n");
 
-
         const blob =
             new Blob(
                 [
@@ -4744,45 +3919,38 @@ async function downloadTodaySales() {
                 }
             );
 
-
         const url =
             URL.createObjectURL(
                 blob
             );
-
 
         const link =
             document.createElement(
                 "a"
             );
 
-
         link.href =
             url;
 
-
         link.download =
             `penjualan-${today}.csv`;
-
 
         document.body.appendChild(
             link
         );
 
-
         link.click();
 
-
         link.remove();
-
 
         URL.revokeObjectURL(
             url
         );
 
-
         showNotification(
-            `Penjualan ${today} berhasil didownload.`,
+            `Penjualan ${formatDateIndonesia(
+                today
+            )} berhasil didownload dari Google Sheets.`,
             "success"
         );
 
@@ -4795,10 +3963,9 @@ async function downloadTodaySales() {
             error
         );
 
-
         showNotification(
             error.message ||
-            "Gagal download penjualan.",
+            "Gagal mengambil penjualan dari Google Sheets.",
             "error"
         );
 
@@ -4809,7 +3976,7 @@ async function downloadTodaySales() {
 
 /* =========================================================
    CSV ESCAPE
-========================================================= */
+   ========================================================= */
 
 function csvEscape(
     value
@@ -4819,7 +3986,6 @@ function csvEscape(
         String(
             value ?? ""
         );
-
 
     if (
         text.includes(",") ||
@@ -4839,7 +4005,6 @@ function csvEscape(
 
     }
 
-
     return text;
 
 }
@@ -4847,18 +4012,16 @@ function csvEscape(
 
 /* =========================================================
    RESET MODAL
-========================================================= */
+   ========================================================= */
 
 function openResetModal() {
 
     const modal =
         $("resetModal");
 
-
     if (!modal) {
         return;
     }
-
 
     if (
         $("resetMessage")
@@ -4870,10 +4033,8 @@ function openResetModal() {
 
     }
 
-
     modal.hidden =
         false;
-
 
     modal.setAttribute(
         "aria-hidden",
@@ -4888,15 +4049,12 @@ function closeResetModal() {
     const modal =
         $("resetModal");
 
-
     if (!modal) {
         return;
     }
 
-
     modal.hidden =
         true;
-
 
     modal.setAttribute(
         "aria-hidden",
@@ -4908,7 +4066,7 @@ function closeResetModal() {
 
 /* =========================================================
    RESET TODAY SALES
-========================================================= */
+   ========================================================= */
 
 async function resetTodaySales() {
 
@@ -4918,25 +4076,20 @@ async function resetTodaySales() {
         return;
     }
 
-
     const message =
         $("resetMessage");
 
-
     const confirmed =
         window.confirm(
-            "Yakin ingin menghapus seluruh penjualan hari ini?"
+            "Yakin ingin menghapus seluruh penjualan hari ini dari Google Sheets?"
         );
-
 
     if (!confirmed) {
         return;
     }
 
-
     state.isResetting =
         true;
-
 
     if (message) {
 
@@ -4945,12 +4098,10 @@ async function resetTodaySales() {
 
     }
 
-
     try {
 
         const today =
             getTodayKey();
-
 
         const result =
             await googleRequest({
@@ -4959,13 +4110,9 @@ async function resetTodaySales() {
                     "deleteTodaySales",
 
                 dateKey:
-                    today,
-
-                TANGGAL_KEY:
                     today
 
             });
-
 
         if (
             result.success === false
@@ -4978,12 +4125,13 @@ async function resetTodaySales() {
 
         }
 
+        /*
+         * Ambil ulang dari Google Sheets.
+         */
 
         await loadTodaySalesFromGoogleSheets();
 
-
         closeResetModal();
-
 
         showNotification(
             "Penjualan hari ini sudah dibersihkan. Data menu dan harga tetap aman.",
@@ -4999,7 +4147,6 @@ async function resetTodaySales() {
             error
         );
 
-
         if (message) {
 
             message.textContent =
@@ -5007,7 +4154,6 @@ async function resetTodaySales() {
                 "Gagal menghapus penjualan.";
 
         }
-
 
         showNotification(
             error.message ||
@@ -5029,7 +4175,7 @@ async function resetTodaySales() {
 
 /* =========================================================
    NOTIFICATION
-========================================================= */
+   ========================================================= */
 
 let notificationTimer =
     null;
@@ -5043,30 +4189,24 @@ function showNotification(
     const notification =
         $("notification");
 
-
     if (!notification) {
         return;
     }
-
 
     clearTimeout(
         notificationTimer
     );
 
-
     notification.hidden =
         false;
 
-
     notification.className =
         `notification ${type}`;
-
 
     notification.textContent =
         String(
             message ?? ""
         );
-
 
     notificationTimer =
         setTimeout(
@@ -5084,18 +4224,16 @@ function showNotification(
 
 /* =========================================================
    SEARCH
-========================================================= */
+   ========================================================= */
 
 function initializeSearch() {
 
     const input =
         $("menuSearch");
 
-
     if (!input) {
         return;
     }
-
 
     input.addEventListener(
         "input",
@@ -5104,7 +4242,6 @@ function initializeSearch() {
             state.searchText =
                 event.target.value ||
                 "";
-
 
             renderMenus();
 
@@ -5116,24 +4253,21 @@ function initializeSearch() {
 
 /* =========================================================
    PAYMENT INPUT
-========================================================= */
+   ========================================================= */
 
 function initializePaymentInput() {
 
     const input =
         $("paymentAmount");
 
-
     if (!input) {
         return;
     }
-
 
     input.addEventListener(
         "input",
         updatePaymentUI
     );
-
 
     input.addEventListener(
         "keydown",
@@ -5146,10 +4280,8 @@ function initializePaymentInput() {
 
                 event.preventDefault();
 
-
                 const button =
                     $("payButton");
-
 
                 if (
                     button &&
@@ -5170,7 +4302,7 @@ function initializePaymentInput() {
 
 /* =========================================================
    EVENTS
-========================================================= */
+   ========================================================= */
 
 function initializeEvents() {
 
@@ -5180,13 +4312,11 @@ function initializeEvents() {
             openMenuModal
         );
 
-
     $("addMenuFromEmpty")
         ?.addEventListener(
             "click",
             openMenuModal
         );
-
 
     $("closeMenuModal")
         ?.addEventListener(
@@ -5194,13 +4324,11 @@ function initializeEvents() {
             closeMenuModal
         );
 
-
     $("menuModalOverlay")
         ?.addEventListener(
             "click",
             closeMenuModal
         );
-
 
     $("cancelMenuForm")
         ?.addEventListener(
@@ -5208,14 +4336,12 @@ function initializeEvents() {
             resetMenuForm
         );
 
-
     $("newMenuButton")
         ?.addEventListener(
             "click",
             () => {
 
                 resetMenuForm();
-
 
                 if (
                     $("menuModalTitle")
@@ -5227,20 +4353,17 @@ function initializeEvents() {
 
                 }
 
-
                 $("menuName")
                     ?.focus();
 
             }
         );
 
-
     $("menuForm")
         ?.addEventListener(
             "submit",
             saveMenu
         );
-
 
     $("clearCartButton")
         ?.addEventListener(
@@ -5252,7 +4375,6 @@ function initializeEvents() {
                 ) {
                     return;
                 }
-
 
                 if (
                     window.confirm(
@@ -5267,13 +4389,11 @@ function initializeEvents() {
             }
         );
 
-
     $("payButton")
         ?.addEventListener(
             "click",
             processPayment
         );
-
 
     $("printReceiptButton")
         ?.addEventListener(
@@ -5293,13 +4413,11 @@ function initializeEvents() {
             }
         );
 
-
     $("finishWithoutPrintButton")
         ?.addEventListener(
             "click",
             closePaymentSuccessModal
         );
-
 
     $("paymentSuccessOverlay")
         ?.addEventListener(
@@ -5307,53 +4425,11 @@ function initializeEvents() {
             closePaymentSuccessModal
         );
 
-
-    $("closeSaleDetail")
-        ?.addEventListener(
-            "click",
-            closeSaleDetail
-        );
-
-
-    $("closeSaleDetailButton")
-        ?.addEventListener(
-            "click",
-            closeSaleDetail
-        );
-
-
-    $("saleDetailOverlay")
-        ?.addEventListener(
-            "click",
-            closeSaleDetail
-        );
-
-
-    $("printDetailReceipt")
-        ?.addEventListener(
-            "click",
-            () => {
-
-                if (
-                    state.selectedSale
-                ) {
-
-                    printReceipt(
-                        state.selectedSale
-                    );
-
-                }
-
-            }
-        );
-
-
     $("downloadTodayButton")
         ?.addEventListener(
             "click",
             downloadTodaySales
         );
-
 
     $("resetTodayButton")
         ?.addEventListener(
@@ -5361,13 +4437,11 @@ function initializeEvents() {
             openResetModal
         );
 
-
     $("closeResetModal")
         ?.addEventListener(
             "click",
             closeResetModal
         );
-
 
     $("cancelReset")
         ?.addEventListener(
@@ -5375,20 +4449,17 @@ function initializeEvents() {
             closeResetModal
         );
 
-
     $("resetModalOverlay")
         ?.addEventListener(
             "click",
             closeResetModal
         );
 
-
     $("confirmReset")
         ?.addEventListener(
             "click",
             resetTodaySales
         );
-
 
     document.addEventListener(
         "keydown",
@@ -5401,22 +4472,14 @@ function initializeEvents() {
                 return;
             }
 
-
             const menuModal =
                 $("menuModal");
-
 
             const resetModal =
                 $("resetModal");
 
-
             const successModal =
                 $("paymentSuccessModal");
-
-
-            const detailModal =
-                $("saleDetailModal");
-
 
             if (
                 menuModal &&
@@ -5427,7 +4490,6 @@ function initializeEvents() {
 
             }
 
-
             if (
                 resetModal &&
                 !resetModal.hidden
@@ -5437,23 +4499,12 @@ function initializeEvents() {
 
             }
 
-
             if (
                 successModal &&
                 !successModal.hidden
             ) {
 
                 closePaymentSuccessModal();
-
-            }
-
-
-            if (
-                detailModal &&
-                !detailModal.hidden
-            ) {
-
-                closeSaleDetail();
 
             }
 
@@ -5465,13 +4516,12 @@ function initializeEvents() {
 
 /* =========================================================
    CURRENT DATE
-========================================================= */
+   ========================================================= */
 
 function renderCurrentDate() {
 
     const now =
         getDateObject();
-
 
     const text =
         new Intl.DateTimeFormat(
@@ -5486,7 +4536,6 @@ function renderCurrentDate() {
             now
         );
 
-
     if (
         $("currentDate")
     ) {
@@ -5496,7 +4545,6 @@ function renderCurrentDate() {
                 text;
 
     }
-
 
     if (
         $("salesDate")
@@ -5515,7 +4563,7 @@ function renderCurrentDate() {
 
 /* =========================================================
    REFRESH DATA
-========================================================= */
+   ========================================================= */
 
 async function refreshAllData() {
 
@@ -5529,7 +4577,7 @@ async function refreshAllData() {
 
 /* =========================================================
    AUTO REFRESH
-========================================================= */
+   ========================================================= */
 
 function initializeAutoRefresh() {
 
@@ -5543,8 +4591,12 @@ function initializeAutoRefresh() {
                 return;
             }
 
-
             try {
+
+                /*
+                 * Hanya refresh statistik.
+                 * Tidak menampilkan transaksi.
+                 */
 
                 await loadTodaySalesFromGoogleSheets();
 
@@ -5568,7 +4620,7 @@ function initializeAutoRefresh() {
 
 /* =========================================================
    INIT
-========================================================= */
+   ========================================================= */
 
 async function initializeApp() {
 
@@ -5578,10 +4630,8 @@ async function initializeApp() {
         return;
     }
 
-
     state.initialized =
         true;
-
 
     renderCurrentDate();
 
@@ -5599,27 +4649,21 @@ async function initializeApp() {
 
     initializeEvents();
 
-
     const connected =
         await checkGoogleSheetsConnection();
-
 
     if (!connected) {
 
         renderMenus();
-
         renderSalesHistory();
 
         return;
 
     }
 
-
     await refreshAllData();
 
-
     initializeAutoRefresh();
-
 
     setInterval(
         renderCurrentDate,
@@ -5631,7 +4675,7 @@ async function initializeApp() {
 
 /* =========================================================
    START APPLICATION
-========================================================= */
+   ========================================================= */
 
 if (
     document.readyState ===
